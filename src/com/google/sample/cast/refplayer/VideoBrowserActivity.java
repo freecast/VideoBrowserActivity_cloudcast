@@ -58,6 +58,8 @@ import android.widget.Toast;
 public class VideoBrowserActivity extends Activity {
 
 	private static final String TAG = "VideoBrowserActivity";
+	private static final String TAG_TENCENT = "VideoBrowserActivity_tencent";
+
 	private VideoCastManager mCastManager;
 	private IVideoCastConsumer mCastConsumer;
 	private MiniController mMini;
@@ -65,21 +67,13 @@ public class VideoBrowserActivity extends Activity {
 
 	private WebView webView = null;
 	public Handler handler = new Handler();
-	String httpurl = "XNjc4MjgwNTEy";
-	String loadurl = "";
-	String title = "";
-	String sharedText = "";
-	String youkuTitle = "null";
-	String youkuThumbUrl = "null";
-	boolean youkuDone = false;
-	public MyObject testobj;
 
-	class JsObject {
-		@JavascriptInterface
-		public String toString() {
-			return "injectedObject";
-		}
-	}
+	String youkuTitle = "优酷视频";
+//	String youkuThumbUrl = "file:///android_asset/youku.jpg";
+	String youkuThumbUrl = "null";
+	String youkuUrl = "null";
+	String youkuVid = "null";
+	public MyObject testobj;
 
 	public class MyObject {
 		private Handler handler = null;
@@ -93,39 +87,32 @@ public class VideoBrowserActivity extends Activity {
 		public void init() {
 			// 通过handler来确保init方法的执行在主线程中
 			handler.post(new Runnable() {
-
 				public void run() {
-					Log.d("@@@@ VideoBrowserActivity", "run()");
+					Log.d(TAG, "MyObject.init run()");
 					if (VERSION.SDK_INT < 17)
-						webView.loadUrl("javascript:showHtmlcallJava2('"
-								+ httpurl + "')");
-
+						webView.loadUrl("javascript:showHtmlcallJava2('" + youkuVid
+								+ "')");
 				}
 			});
 		}
 
 		public void Java2Html() {
-			Log.d("@@@@ VideoBrowserActivity", "Java2Html()");
-			webView.loadUrl("javascript:showHtmlcallJava2('" + httpurl + "')");
+			Log.d(TAG, "MyObject.Java2Html()");
+			webView.loadUrl("javascript:showHtmlcallJava2('" + youkuVid + "')");
 		}
 
 		@JavascriptInterface
 		public String HtmlcallJava2(final String param) {
-			loadurl = param;
-			try {
-				getYoukuVideoInfo("http://v.youku.com/player/getPlayList/VideoIDS/"
-						+ httpurl);
-			} catch (Exception e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+			youkuUrl = param;
+			getYoukuVideoInfo("http://v.youku.com/player/getPlayList/VideoIDS/"
+					+ youkuVid);
 
 			Intent intent1 = new Intent("XBMC.cast");
 			intent1.setDataAndType(
-					Uri.parse(loadurl + "[@]" + youkuTitle + "[@]"
+					Uri.parse(youkuUrl + "[@]" + youkuTitle + "[@]"
 							+ youkuThumbUrl), null);
 
-			Log.d("%%%%% startActivity(intent1)", loadurl);
+			Log.d(TAG + "_js_cb", youkuUrl);
 
 			startActivity(intent1);
 
@@ -144,55 +131,9 @@ public class VideoBrowserActivity extends Activity {
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		// VideoCastManager.checkGooglePlaySevices(this);
-		Log.d(TAG, "onCreate was called");
 		setContentView(R.layout.video_browser);
 
-		Intent intent = getIntent();
-		String action = intent.getAction();
-		String type = intent.getType();
-
-		Log.d(TAG, "action=" + action);
-		Log.d(TAG, "type=" + type);
-		Log.d(TAG, "intent=" + intent.toString());
-		Log.d(TAG, "intent.extra=" + intent.getExtras().toString());
-		Log.d(TAG,
-				"intent.StringExtra" + intent.getStringExtra(Intent.EXTRA_TEXT));
-
-		StringBuilder str = new StringBuilder();
-		Bundle bundle = getIntent().getExtras();
-		if (bundle != null) {
-			Set<String> keys = bundle.keySet();
-			Iterator<String> it = keys.iterator();
-			while (it.hasNext()) {
-				String key = it.next();
-				str.append(key);
-				str.append(":");
-				str.append(bundle.get(key));
-				str.append("\n\r");
-			}
-			Log.d(TAG, str.toString());
-		}
-
-		if (Intent.ACTION_SEND.equals(action) && type != null) {
-			if ("text/plain".equals(type)) {
-				sharedText = intent.getStringExtra(Intent.EXTRA_TEXT);
-				Log.v("%%%% get intent string = ", sharedText);
-			}
-		}
-
-		String target1 = "v.youku.com";
-
-		int a = sharedText.indexOf(target1);
-		if (a > 0) {
-			CallYouku();
-		}
-
-		String target2 = "v.qq.com";
-
-		int b = sharedText.indexOf(target2);
-		if (b > 0) {
-			CallTencent();
-		}
+		castIntent(getIntent());
 
 		// ActionBar actionBar = getSupportActionBar();
 
@@ -235,78 +176,75 @@ public class VideoBrowserActivity extends Activity {
 		 */
 	}
 
-	private void CallYouku() {
+	private void castIntent(Intent intent) {
+		String action = intent.getAction();
+		Matcher matcher;
 
-		StringTokenizer commaToker = new StringTokenizer(sharedText, "_");
-		String[] result = new String[commaToker.countTokens()]; //
-		int i = 0;
-		while (commaToker.hasMoreTokens()) {
-
-			result[i] = commaToker.nextToken();
-			Log.d("%%%% result = ", result[i]);
-			i++;
+		if (Intent.ACTION_SEND.equals(action) == false) {
+			Log.d(TAG, "not a ACTION_SEND");
+			return;
 		}
 
-		StringTokenizer commaToker2 = new StringTokenizer(result[i - 1], ".");
-		String[] result2 = new String[commaToker2.countTokens()]; //
-		int m = 0;
-		while (commaToker2.hasMoreTokens()) {
+		Log.d(TAG, "intent=" + intent.toString());
+		Log.d(TAG, "intent dump:");
 
-			result2[m] = commaToker2.nextToken();
-			Log.d("!!!!	result2 = ", result2[m]);
-			m++;
+		StringBuilder str = new StringBuilder();
+		Bundle bundle = getIntent().getExtras();
+		if (bundle != null) {
+			Set<String> keys = bundle.keySet();
+			Iterator<String> it = keys.iterator();
+			while (it.hasNext()) {
+				String key = it.next();
+				str.append(key);
+				str.append(":");
+				str.append(bundle.get(key));
+				str.append("\n");
+			}
+			Log.d(TAG, str.toString());
 		}
 
-		StringTokenizer commaToker3 = new StringTokenizer(result[0], "：】");
-		String[] result3 = new String[commaToker3.countTokens()]; //
-		int n = 0;
-		while (commaToker3.hasMoreTokens()) {
-
-			result3[n] = commaToker3.nextToken();
-			Log.d("!!!!	result3 = ", result3[n]);
-			n++;
+		String extraText = intent.getStringExtra(Intent.EXTRA_TEXT);
+		if (extraText == null || extraText.equals("")) {
+			Log.d(TAG, "empty intent extra text");
+			return;
 		}
 
-		title = result3[1];
+		matcher = Pattern.compile("http://.*v.youku.com(.+?)/id_(.+?).html")
+				.matcher(extraText);
+		if (matcher.find()) {
+			youkuVid = matcher.group(2);
+			Log.d(TAG, "youku url detected: " + matcher.group(0));
+			Log.d(TAG, "youku vid: " + youkuVid);
+			castYouku(youkuVid);
+		}
 
-		httpurl = result2[0];
+		matcher = Pattern.compile("http://.*v.qq.com/(.+?).html").matcher(
+				extraText);
+		if (matcher.find()) {
+			Log.d(TAG, "tencent url detected: " + matcher.group(0));
+			Log.d(TAG, "tencent partial url: " + matcher.group(1));
+			castTencent("http://v.qq.com/" + matcher.group(1) + ".html");
+		}
+	}
 
+	@SuppressLint("SetJavaScriptEnabled")
+	private void castYouku(String vid) {
 		webView = (WebView) this.findViewById(R.id.webView1);
-		// webView.setVisibility(View.INVISIBLE);
-		// webView.setVisibility(View.GONE);
+		webView.setVisibility(View.INVISIBLE);
+		webView.setVisibility(View.GONE);
 
-		/*
-		 * webView.addJavascriptInterface(new JsObject(), "injectedObject");
-		 * webView.loadData("", "text/html", null);
-		 * webView.loadUrl("javascript:alert(injectedObject.toString())");
-		 * 
-		 * Log.d("VideoBrowserActivity", "javascript:alert(url)");
-		 */
-
-		// 设置字符集编码
 		webView.getSettings().setDefaultTextEncodingName("UTF-8");
-		// 开启JavaScript支持
 		webView.getSettings().setJavaScriptEnabled(true);
 		testobj = new MyObject(this, handler);
 		webView.addJavascriptInterface(testobj, "myObject");
-		// 加载assets目录下的文件
-		String url = "file:///android_asset/youkump4.html";
-		Log.d("@@@@ VideoBrowserActivity", "webView load youkump4.html");
-		webView.loadUrl(url);
-		// webView.loadUrl("javascript:showHtmlcallJava2('" + httpurl + "')");
 
-		Log.d("@@@@ VideoBrowserActivity", "webView.loadUrl(url)");
-
+		Log.d(TAG, "webView load youkump4.html");
+		webView.loadUrl("file:///android_asset/youkump4.html");
+		Log.d(TAG, "webView load youkump4.html done!");
 	}
 
 	public void getYoukuVideoInfo(String path) {
-		final String fPath = path;
-		try {
-			getYoukuThumbAndTitle(fPath);
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+		getYoukuThumbAndTitle(path);
 		/*
 		 * new Thread() {
 		 * 
@@ -316,7 +254,7 @@ public class VideoBrowserActivity extends Activity {
 		 */
 	}
 
-	public void getYoukuThumbAndTitle(String path) throws Exception {
+	public void getYoukuThumbAndTitle(String path) {
 		InputStream stream = null;
 		JsonReader reader = null;
 
@@ -330,8 +268,14 @@ public class VideoBrowserActivity extends Activity {
 			reader = new JsonReader(new InputStreamReader(stream, "UTF-8"));
 
 			parseYoukuData(reader);
+		} catch (Exception e) {
+			e.printStackTrace();
 		} finally {
-			reader.close();
+			try {
+				reader.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
 		}
 	}
 
@@ -433,142 +377,114 @@ public class VideoBrowserActivity extends Activity {
 		return outStream.toByteArray();
 	}
 
-	private void CallTencent() {
-
+	private void castTencent(final String url) {
 		new Thread() {
 			@Override
 			public void run() {
-				// 把网络访问的代码放在这里
-
 				try {
 					// String test =
 					// getPictureData("http://v.qq.com/cover/o/obr3rfx7xdatznl.html");
 					// Log.v("test come out: ", test);
 					// System.out.println(test);
-					String pattStr;
-					Pattern pattern;
 					Matcher matcher;
+					//String tencentThumbUrl = "file:///android_asset/tencent.png";
 					String tencentThumbUrl = "null";
-					String tencentTitle = "null";
+					String tencentTitle = "腾讯视频";
+					String content;
+					String tencentVid = "null";
 
-					String target0 = "m.";
-					int d = sharedText.indexOf(target0);
-					String test;
+					content = getPictureData(url);
+					System.out.println(content);
 
-					if (d > 0) {
-						int f = sharedText.length();
-						char g[] = new char[f - d - 2];
-						sharedText.getChars(d + 2, f, g, 0);
-						String h = new String(g);
-						Log.v("zhengshi", sharedText);
-						Log.v("zhengshi", h);
-
-						test = getPictureData("http://" + h);
-					} else {
-						test = getPictureData(sharedText);
-					}
-					System.out.println(test);
-					pattStr = new String("meta http-equiv=\"Content-Type\"");
-					pattern = Pattern.compile(pattStr);
-					matcher = pattern.matcher(test);
+					matcher = Pattern.compile(
+							"meta http-equiv=\"Content-Type\"")
+							.matcher(content);
 					if (matcher.find()) {
-						matcher = Pattern.compile("url=(.+?)\"").matcher(test);
+						Log.d(TAG_TENCENT, "redirect url detected");
+						matcher = Pattern.compile("url=(.+?)\"").matcher(
+								content);
 						if (matcher.find()) {
 							String redirectUrl = matcher.group(1);
-							Log.d("tencent", "redirect_url=" + redirectUrl);
+							Log.d(TAG_TENCENT, "redirect_url=" + redirectUrl);
 							matcher = Pattern.compile("vid=(.+?)$").matcher(
 									redirectUrl);
 							if (matcher.find()) {
-								String vid = matcher.group(1);
+								tencentVid = matcher.group(1);
 								Log.d("tencent", "vid found in redirect url:"
-										+ vid);
-								String regStr = "src=\"http://(.+?)" + vid
-										+ "(.+?)\" alt=\"(.+?)\"";
-								test = getPictureData(redirectUrl);
+										+ tencentVid);
+								String regStr = "src=\"http://(.+?)"
+										+ tencentVid + "(.+?)\" alt=\"(.+?)\"";
+								content = getPictureData(redirectUrl);
 								Log.d("tencent", "searching thumb and title:"
 										+ regStr);
-								matcher = Pattern.compile(regStr).matcher(test);
+								matcher = Pattern.compile(regStr).matcher(
+										content);
 								if (matcher.find()) {
 									tencentThumbUrl = "http://"
-											+ matcher.group(1) + vid
+											+ matcher.group(1) + tencentVid
 											+ matcher.group(2);
 									tencentTitle = matcher.group(3);
 								}
 							} else {
 								Log.d("tencent",
 										"vid not found from redirect url");
+								return;
 							}
 						}
 					} else {
-						// System.out.println(test);
-						pattStr = new String("pic :\"(.+?)\"");
-						System.out
-								.println("zhengshi start pattern: " + pattStr);
-						pattern = Pattern.compile(pattStr);
-						matcher = pattern.matcher(test);
+						matcher = Pattern.compile("vid:\"(.+?)\"").matcher(
+								content);
+						if (matcher.find()) {
+							tencentVid = matcher.group(1);
+							Log.d(TAG_TENCENT, "tencentVid: " + tencentVid);
+						} else {
+							Log.e(TAG_TENCENT, "tencentVid not found");
+							return;
+						}
+						matcher = Pattern.compile("pic :\"(.+?)\"").matcher(
+								content);
 						if (matcher.find()) {
 							tencentThumbUrl = matcher.group(1);
-							System.out.println(tencentThumbUrl);
+							Log.d(TAG_TENCENT, "tencentThumbUrl: "
+									+ tencentThumbUrl);
 						} else {
-							System.out.println("tencentThumbUrl not found");
+							Log.d(TAG_TENCENT, "tencentThumbUrl not found, "
+									+ tencentThumbUrl + " will be used");
 						}
 
-						pattStr = new String("title :\"(.+?)\"");
-						System.out
-								.println("zhengshi start pattern: " + pattStr);
-						pattern = Pattern.compile(pattStr);
-						matcher = pattern.matcher(test);
+						matcher = Pattern.compile("title :\"(.+?)\"").matcher(
+								content);
 						if (matcher.find()) {
 							tencentTitle = matcher.group(1);
-							System.out.println(tencentTitle);
+							Log.d(TAG_TENCENT, "tencentTitle: " + tencentTitle);
 						} else {
-							System.out.println("title not found");
+							Log.d(TAG_TENCENT, "tencentTitle not found, "
+									+ tencentTitle + " will be used");
 						}
-						System.out.println("zhengshi end pattern");
 					}
 
-					String target = "vid:";
-
-					int a = test.indexOf(target);
-
-					char c[] = new char[11];
-					test.getChars(a + 5, a + 16, c, 0);
-					String s = new String(c);
-					Log.v("test", s);
-
-					String test2 = getPictureData("http://vv.video.qq.com/geturl?vid="
-							+ s
+					content = getPictureData("http://vv.video.qq.com/geturl?vid="
+							+ tencentVid
 							+ "&otype=xml&platform=1&ran=0%2E9652906153351068");
 					// System.out.println(test2);
+					matcher = Pattern.compile("<url>(.+?)</url>").matcher(
+							content);
+					if (matcher.find()) {
+						Log.d(TAG_TENCENT, "streamUrl: " + matcher.group(1));
 
-					String target1 = "http";
-					int b = test2.indexOf(target1);
-					String target2 = "</url>";
-					int m = test2.indexOf(target2);
-					Log.v("test", b + "  " + m);
-
-					char n[] = new char[m - b];
-					test2.getChars(b, m, n, 0);
-					String k = new String(n);
-					Log.v("test", k);
-
-					loadurl = k;
-					Intent intent1 = new Intent("XBMC.cast");
-					intent1.setDataAndType(
-							Uri.parse(loadurl + "[@]" + tencentTitle + "[@]"
-									+ tencentThumbUrl), null);
-
-					Log.d("%%%%% start Tencent ", loadurl);
-
-					startActivity(intent1);
-
+						Intent intent1 = new Intent("XBMC.cast");
+						intent1.setDataAndType(
+								Uri.parse(matcher.group(1) + "[@]"
+										+ tencentTitle + "[@]"
+										+ tencentThumbUrl), null);
+						startActivity(intent1);
+					}
 				} catch (Exception e) {
-					Log.e("GetHtmlCodeActivity", e.toString());
+					Log.e(TAG_TENCENT, e.toString());
 					System.exit(0);
 				}
 			}
 		}.start();
-
 	}
 
 	private void setupActionBar(ActionBar actionBar) {
