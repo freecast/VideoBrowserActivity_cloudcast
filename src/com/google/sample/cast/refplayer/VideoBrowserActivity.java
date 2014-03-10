@@ -70,8 +70,8 @@ public class VideoBrowserActivity extends Activity {
 
 	String youkuTitle = "优酷视频";
 //	String youkuThumbUrl = "file:///android_asset/youku.jpg";
-	String youkuThumbUrl = "null";
-	String youkuUrl = "null";
+	String youkuThumbUrl = "http://static.youku.com/index/img/header/yklogo.png?qq-pf-to=pcqq.c2c";
+	String youkuUrl = "http://www.google.com";
 	String youkuVid = "null";
 	public MyObject testobj;
 
@@ -115,6 +115,7 @@ public class VideoBrowserActivity extends Activity {
 			Log.d(TAG + "_js_cb", youkuUrl);
 
 			startActivity(intent1);
+			System.exit(0);
 
 			return "Html call Java : " + param;
 		}
@@ -224,6 +225,17 @@ public class VideoBrowserActivity extends Activity {
 			Log.d(TAG, "tencent url detected: " + matcher.group(0));
 			Log.d(TAG, "tencent partial url: " + matcher.group(1));
 			castTencent("http://v.qq.com/" + matcher.group(1) + ".html");
+		}
+
+		// http://m.letv.com/vplay_20020870.html
+		// http://www.letv.com/ptv/vplay/20020870.html
+		matcher = Pattern.compile("http://.*letv.com/vplay_(.+?).html")
+				.matcher(extraText);
+		if (matcher.find()) {
+			Log.d(TAG, "letv url detected: " + matcher.group(0));
+			Log.d(TAG, "letv vplay id: " + matcher.group(1));
+			castLeTV("http://www.letv.com/ptv/vplay/" + matcher.group(1)
+					+ ".html");
 		}
 	}
 
@@ -388,7 +400,7 @@ public class VideoBrowserActivity extends Activity {
 					// System.out.println(test);
 					Matcher matcher;
 					//String tencentThumbUrl = "file:///android_asset/tencent.png";
-					String tencentThumbUrl = "null";
+					String tencentThumbUrl = "http://imgcache.gtimg.cn/tencentvideo_v1/vstyle/web/v3/style/images/logo.png";
 					String tencentTitle = "腾讯视频";
 					String content;
 					String tencentVid = "null";
@@ -478,9 +490,65 @@ public class VideoBrowserActivity extends Activity {
 										+ tencentTitle + "[@]"
 										+ tencentThumbUrl), null);
 						startActivity(intent1);
+						System.exit(0);
 					}
 				} catch (Exception e) {
 					Log.e(TAG_TENCENT, e.toString());
+					System.exit(0);
+				}
+			}
+		}.start();
+	}
+
+	private void castLeTV(final String url) {
+		new Thread() {
+			@Override
+			public void run() {
+				try {
+					Matcher matcher;
+					String LeTVThumbUrl = "http://i1.letvimg.com/img/201206/29/iphonelogo.png";
+					String LeTVTitle = "乐视视频";
+					String content;
+					String LeTVVid = "null";
+
+					content = getPictureData(url);
+					System.out.println(content);
+
+					matcher = Pattern.compile("img:	\"(.+?)\"").matcher(
+							content);
+					if (matcher.find()) {
+						LeTVThumbUrl = matcher.group(1);
+						Log.d("LeTV", "LeTVThumbUrl=" + LeTVThumbUrl);
+					}
+
+					matcher = Pattern.compile("irTitle\" content=\"(.+?)\"")
+							.matcher(content);
+					if (matcher.find()) {
+						LeTVTitle = matcher.group(1);
+						Log.d("LeTV", "LeTVTitle=" + LeTVTitle);
+					}
+
+					// super, high, normal
+					String strDefinitionType = "high";
+					content = getPictureData("http://www.flvcd.com/parse.php?kw="
+							+ url + "&format=" + strDefinitionType);
+					// System.out.println(content);
+
+					matcher = Pattern.compile("var clipurl = \"(.+?)\"")
+							.matcher(content);
+					if (matcher.find()) {
+						String redirectUrl = matcher.group(1);
+						Log.d("LeTV", "redirect_url=" + redirectUrl);
+
+						Intent intent1 = new Intent("XBMC.cast");
+						intent1.setDataAndType(
+								Uri.parse(redirectUrl + "[@]" + LeTVTitle
+										+ "[@]" + LeTVThumbUrl), null);
+						startActivity(intent1);
+						System.exit(0);
+					}
+				} catch (Exception e) {
+					Log.e("LeTV", e.toString());
 					System.exit(0);
 				}
 			}
