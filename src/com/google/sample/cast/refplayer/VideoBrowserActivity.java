@@ -623,14 +623,14 @@ public class VideoBrowserActivity extends Activity {
 							content);
 					if (matcher.find()) {
 						LeTVThumbUrl = matcher.group(1);
-						Log.d("LeTV", "LeTVThumbUrl=" + LeTVThumbUrl);
+						Log.d("LeTVreal", "LeTVThumbUrl=" + LeTVThumbUrl);
 					}
 
 					matcher = Pattern.compile("irTitle\" content=\"(.+?)\"")
 							.matcher(content);
 					if (matcher.find()) {
 						LeTVTitle = matcher.group(1);
-						Log.d("LeTV", "LeTVTitle=" + LeTVTitle);
+						Log.d("LeTVreal", "LeTVTitle=" + LeTVTitle);
 					}
 
 					// super, high, normal
@@ -643,13 +643,16 @@ public class VideoBrowserActivity extends Activity {
 							.matcher(content);
 					if (matcher.find()) {
 						String redirectUrl = matcher.group(1);
-						Log.d("LeTV", "redirect_url=" + redirectUrl);
+						Log.d("LeTVreal", "redirect_url=" + redirectUrl);
 
 						Intent intent1 = new Intent("XBMC.cast");
+						Log.d("LeTVreal", "new intent was done");
 						intent1.setDataAndType(
 								Uri.parse(redirectUrl + "[@]" + LeTVTitle
 										+ "[@]" + LeTVThumbUrl), null);
+						Log.d("LeTVreal", "intent set data and type was done");
 						startActivity(intent1);
+						Log.d("LeTVreal", "startActivity was done");
 						System.exit(0);
 					}
 				} catch (Exception e) {
