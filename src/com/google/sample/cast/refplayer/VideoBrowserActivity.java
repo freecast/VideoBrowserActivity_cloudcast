@@ -52,8 +52,10 @@ import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.View.OnClickListener;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
+import android.widget.Button;
 import android.widget.Toast;
 
 public class VideoBrowserActivity extends Activity {
@@ -68,6 +70,11 @@ public class VideoBrowserActivity extends Activity {
 
 	private WebView webView = null;
 	public Handler handler = new Handler();
+	private Button buttonSD;
+	private Button buttonHD;
+	private Button buttonFHD;
+	private String MyDefinitionType;
+	private String LeTVurl;
 
 	String youkuTitle = "优酷视频";
 	String youkuThumbUrl = "http://static.youku.com/index/img/header/yklogo.png?qq-pf-to=pcqq.c2c";
@@ -142,48 +149,68 @@ public class VideoBrowserActivity extends Activity {
 		// VideoCastManager.checkGooglePlaySevices(this);
 		setContentView(R.layout.video_browser);
 
+		buttonSD = (Button) findViewById(R.id.button1);
+		buttonHD = (Button) findViewById(R.id.button2);
+		buttonFHD = (Button) findViewById(R.id.button3);
+		
+
+		buttonSD.setOnClickListener(new submitOnClieckListener1());
+		buttonHD.setOnClickListener(new submitOnClieckListener2()); 
+		buttonFHD.setOnClickListener(new submitOnClieckListener3()); 		
+		
+		
 		castIntent(getIntent());
 
-		// ActionBar actionBar = getSupportActionBar();
 
-		// mCastManager = CastApplication.getCastManager(this);
-		/*
-		 * // -- Adding MiniController mMini = (MiniController)
-		 * findViewById(R.id.miniController1);
-		 * mCastManager.addMiniController(mMini);
-		 * 
-		 * mCastConsumer = new VideoCastConsumerImpl() {
-		 * 
-		 * @Override public void onFailed(int resourceId, int statusCode) {
-		 * 
-		 * }
-		 * 
-		 * @Override public void onConnectionSuspended(int cause) { Log.d(TAG,
-		 * "onConnectionSuspended() was called with cause: " + cause);
-		 * com.google.sample.cast.refplayer.utils.Utils.
-		 * showToast(VideoBrowserActivity.this, R.string.connection_temp_lost);
-		 * }
-		 * 
-		 * @Override public void onConnectivityRecovered() {
-		 * com.google.sample.cast.refplayer.utils.Utils.
-		 * showToast(VideoBrowserActivity.this, R.string.connection_recovered);
-		 * }
-		 * 
-		 * @Override public void onCastDeviceDetected(final RouteInfo info) { if
-		 * (!CastPreference.isFtuShown(VideoBrowserActivity.this)) {
-		 * CastPreference.setFtuShown(VideoBrowserActivity.this);
-		 * 
-		 * Log.d(TAG, "Route is visible: " + info); new
-		 * Handler().postDelayed(new Runnable() {
-		 * 
-		 * @Override public void run() { if (mediaRouteMenuItem.isVisible()) {
-		 * Log.d(TAG, "Cast Icon is visible: " + info.getName()); showFtu(); } }
-		 * }, 1000); } } };
-		 * 
-		 * setupActionBar(actionBar);
-		 * mCastManager.reconnectSessionIfPossible(this, false);
-		 */
 	}
+	
+	   class submitOnClieckListener1 implements OnClickListener{  
+	        @Override  
+	        public void onClick(View v) {  
+	//本地机器部署为服务器，从本地下载a.txt文件内容在textView上显示           
+
+	            new Thread(){  
+	                public void run(){
+	                	MyDefinitionType = "normal";
+	                	Log.v("submitOnClieckListener1","normal");
+		            	RealcastLeTV(LeTVurl,MyDefinitionType); 
+	                	Log.v("submitOnClieckListener1","normal");
+	                    }                     
+	            }.start();                        
+	        }  
+	          
+	    }   
+	  	
+	   class submitOnClieckListener2 implements OnClickListener{  
+	        @Override  
+	        public void onClick(View v) {  
+	//本地机器部署为服务器，从本地下载a.txt文件内容在textView上显示           
+
+	            new Thread(){  
+	                public void run(){
+	                	MyDefinitionType = "high";
+		            	RealcastLeTV(LeTVurl,MyDefinitionType);  
+	                	Log.v("submitOnClieckListener1","high");
+	                    }                     
+	            }.start();                        
+	        }  
+	          
+	    } 	
+	   
+	   class submitOnClieckListener3 implements OnClickListener{  
+	        @Override  
+	        public void onClick(View v) {  
+	//本地机器部署为服务器，从本地下载a.txt文件内容在textView上显示           
+
+	            new Thread(){  
+	                public void run(){
+	                	MyDefinitionType = "super";
+		            	RealcastLeTV(LeTVurl,MyDefinitionType);  
+	                	Log.v("submitOnClieckListener1","super");
+	                    }                     
+	            }.start();                        
+	        }            
+	    } 		
 
 	private void castIntent(Intent intent) {
 		String action = intent.getAction();
@@ -224,6 +251,9 @@ public class VideoBrowserActivity extends Activity {
 			youkuVid = matcher.group(2);
 			Log.d(TAG, "youku url detected: " + matcher.group(0));
 			Log.d(TAG, "youku vid: " + youkuVid);
+			buttonSD.setVisibility(View.INVISIBLE);
+			buttonHD.setVisibility(View.INVISIBLE);
+			buttonFHD.setVisibility(View.INVISIBLE);
 			castYouku(youkuVid);
 		}
 
@@ -232,6 +262,9 @@ public class VideoBrowserActivity extends Activity {
 		if (matcher.find()) {
 			Log.d(TAG, "tencent url detected: " + matcher.group(0));
 			Log.d(TAG, "tencent partial url: " + matcher.group(1));
+			buttonSD.setVisibility(View.INVISIBLE);
+			buttonHD.setVisibility(View.INVISIBLE);
+			buttonFHD.setVisibility(View.INVISIBLE);
 			castTencent("http://v.qq.com/" + matcher.group(1) + ".html");
 		}
 
@@ -524,7 +557,59 @@ public class VideoBrowserActivity extends Activity {
 		new Thread() {
 			@Override
 			public void run() {
+				try {	
+						Matcher matcher;
+						String LeTVThumbUrl = "http://i1.letvimg.com/img/201206/29/iphonelogo.png";
+						String LeTVTitle = "乐视视频";
+						String content;
+						String LeTVVid = "null";
+						
+						LeTVurl = url;
+
+						content = getPictureData("http://www.flvcd.com/parse.php?kw="
+								+ url + "&format=" + "normal");
+						//System.out.println(content);
+
+						matcher = Pattern.compile("format=high(.+?)").matcher(
+								content);
+						if (matcher.find()) {
+							buttonHD.setVisibility(View.VISIBLE);
+							Log.d("LeTV", "buttonHD= VISIBLE");
+						}else{
+							buttonHD.setVisibility(View.INVISIBLE);
+							Log.d("LeTV", "buttonHD= INVISIBLE");
+						}
+						
+						matcher = Pattern.compile("format=super(.+?)").matcher(
+								content);
+						if (matcher.find()) {
+							buttonFHD.setVisibility(View.VISIBLE);
+							Log.d("LeTV", "buttonFHD= VISIBLE");							
+						}else{
+							buttonFHD.setVisibility(View.INVISIBLE);
+							Log.d("LeTV", "buttonFHD= INVISIBLE");		
+						}
+						
+						buttonSD.setVisibility(View.VISIBLE);
+						Log.d("LeTV", "buttonSD= VISIBLE");
+
+					}
+				catch (Exception e) {
+					Log.e("LeTV", e.toString());
+					System.exit(0);
+					}
+			}		
+
+		}.start();
+	}
+
+	private void RealcastLeTV(final String url, final String strDefinitionType) 
+	{
+		new Thread() {
+			@Override
+			public void run() {
 				try {
+					
 					Matcher matcher;
 					String LeTVThumbUrl = "http://i1.letvimg.com/img/201206/29/iphonelogo.png";
 					String LeTVTitle = "乐视视频";
@@ -532,7 +617,7 @@ public class VideoBrowserActivity extends Activity {
 					String LeTVVid = "null";
 
 					content = getPictureData(url);
-					System.out.println(content);
+					//System.out.println(content);
 
 					matcher = Pattern.compile("img:	\"(.+?)\"").matcher(
 							content);
@@ -549,7 +634,7 @@ public class VideoBrowserActivity extends Activity {
 					}
 
 					// super, high, normal
-					String strDefinitionType = "high";
+					
 					content = getPictureData("http://www.flvcd.com/parse.php?kw="
 							+ url + "&format=" + strDefinitionType);
 					// System.out.println(content);
