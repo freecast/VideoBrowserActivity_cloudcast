@@ -22,6 +22,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Set;
 import java.util.StringTokenizer;
@@ -69,10 +70,17 @@ public class VideoBrowserActivity extends Activity {
 	public Handler handler = new Handler();
 
 	String youkuTitle = "”≈ø· ”∆µ";
-//	String youkuThumbUrl = "file:///android_asset/youku.jpg";
 	String youkuThumbUrl = "http://static.youku.com/index/img/header/yklogo.png?qq-pf-to=pcqq.c2c";
-	String youkuUrl = "http://www.google.com";
+	String youkuUrl = "http://www.youku.com";
 	String youkuVid = "null";
+
+	String sohuTitle = "À—∫¸ ”∆µ";
+	String sohuThumbUrl = "http://i1.letvimg.com/img/201206/29/iphonelogo.png";
+	String sohuUrl = "http://www.sohu.com";
+	String[] sohuUrls = null;
+	String[] sohuExtraUrls = null;
+	String sohuVid = "null";
+
 	public MyObject testobj;
 
 	public class MyObject {
@@ -237,6 +245,18 @@ public class VideoBrowserActivity extends Activity {
 			castLeTV("http://www.letv.com/ptv/vplay/" + matcher.group(1)
 					+ ".html");
 		}
+
+		// http://m.tv.sohu.com/v1647325.shtml?channeled=1210010500
+		// http://tv.sohu.com/20140306/n396178078.shtml
+		matcher = Pattern.compile("http://m.tv.sohu.com/v(.+?).shtml(.+?)")
+				.matcher(extraText);
+		if (matcher.find()) {
+			Log.d(TAG, "sohu url detected: " + matcher.group(0));
+			Log.d(TAG, "sohu vid: " + matcher.group(1));
+			castSohu(matcher.group(0));
+		}
+
+		Log.d(TAG, "no existing cast for url: " + extraText);
 	}
 
 	@SuppressLint("SetJavaScriptEnabled")
@@ -553,6 +573,178 @@ public class VideoBrowserActivity extends Activity {
 				}
 			}
 		}.start();
+	}
+
+	/* for PC url 
+	 * http://tv.sohu.com/20140306/n396178078.shtml
+	 */
+	private void getSohuVid(final String url) {
+		Matcher matcher;
+		String content;
+
+		// http://tv.sohu.com/20140306/n396178078.shtml
+		try {
+			content = getPictureData(url);
+			// var vid="1643301";
+			matcher = Pattern.compile("var vid=\"(.+?)\";").matcher(content);
+			if (matcher.find()) {
+				sohuVid = matcher.group(1);
+				Log.d("sohu", "vid=" + sohuVid);
+			} else {
+				System.out.println(content);
+				System.exit(0);
+				return;
+			}
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+	}
+	/*
+	 * for mobile url:
+	 * http://m.tv.sohu.com/v1647325.shtml?channeled=1210010500
+	 */
+	private void castSohu(final String url) {
+		new Thread() {
+			@Override
+			public void run() {
+				try {
+					Matcher matcher;
+					String content;
+
+					matcher = Pattern.compile("m.tv.sohu.com/v(.+?).shtml").matcher(url);
+					if (matcher.find()) {
+						sohuVid = matcher.group(1);
+						Log.d("sohu", "vid=" + sohuVid);
+					} else {
+						Log.d("sohu", "vid not found in: " + url);
+						System.exit(0);
+					}
+
+					// http://hot.vrs.sohu.com/vrs_flash.action?vid=1475503
+					content = getPictureData("http://hot.vrs.sohu.com/vrs_flash.action?vid="
+							+ sohuVid);
+					InputStream stream = null;
+					JsonReader reader = null;
+
+					stream = getWebPageStream("http://hot.vrs.sohu.com/vrs_flash.action?vid="
+							+ sohuVid);
+					reader = new JsonReader(new InputStreamReader(stream,
+							"UTF-8"));
+
+					parseSohuData(reader);
+					if (sohuUrls.length != sohuExtraUrls.length)
+						return;
+
+					/*
+					 * "http://data.vod.itc.cn/?prot=2&file="        +
+					 * paths[i].replace('http://data.vod.itc.cn','') +
+					 * '&new='+newpaths[i]
+					 */
+					int i;
+					sohuUrl = "";
+					for (i = 0; i < sohuUrls.length; i++) {
+						Matcher match;
+						match = Pattern.compile("http://data.vod.itc.cn(.+?)$").matcher(sohuUrls[i]);
+						if (match.find() == false)
+							System.exit(0);
+						String part1 = match.group(1);
+						Log.d("sohu", "part1=" + part1);
+
+						String strUrl = "http://data.vod.itc.cn/?prot=2&file=" + part1 + "&new=" + sohuExtraUrls[i];
+						content = getPictureData(strUrl);
+						System.out.println(content);
+
+						/*
+						 * http://183.57.146.23/sohu/4/|425|113.90.234.243|3kYEI9wHApB9acO8Ooz1cOjZJjMze5PEnx-qfA..|1|0|1|1803
+						 * url = link.split('|')[0].rstrip("/")+newpaths[i]+'?key='+key
+						 */
+						match = Pattern.compile("^(.+?)/\\|(.+?)\\|(.+?)\\|(.+?)\\|").matcher(content);
+						if (match.find() == false)
+							System.exit(0);
+
+						String key = match.group(4);
+						Log.d("sohu", "key=" + key);
+
+						part1 = match.group(1);
+						if (part1 == null)
+							return;
+						strUrl = part1 + sohuExtraUrls[i] + "?key=" + key;
+						sohuUrl = sohuUrl + strUrl;
+						if (i < sohuUrls.length - 1)
+							sohuUrl = sohuUrl + " , ";
+					}
+					Log.d("sohu", "sohuUrl=" + sohuUrl);
+
+					Intent intent1 = new Intent("XBMC.cast");
+					intent1.setDataAndType(
+							Uri.parse(sohuUrl + "[@]" + sohuTitle
+									+ "[@]" + sohuThumbUrl), null);
+					startActivity(intent1);
+					System.exit(0);
+				} catch (Exception e) {
+					Log.e("sohu", e.toString());
+					System.exit(0);
+				}
+			}
+		}.start();
+	}
+	public boolean parseSohuData(JsonReader reader) throws Exception {
+		String name;
+		boolean thumbFound = false;
+		boolean titleFound = false;
+		boolean urlFound = false;
+
+		reader.beginObject();
+		while (reader.hasNext()) {
+			name = reader.nextName();
+			if (name.equals("data")) {
+				reader.beginObject();
+				while (reader.hasNext()) {
+					name = reader.nextName();
+					if (name.equals("tvName")) {
+						titleFound = true;
+						sohuTitle = reader.nextString();
+						Log.d("sohu", "title=" + sohuTitle);
+					} else if (name.equals("coverImg")) {
+						thumbFound = true;
+						sohuThumbUrl = reader.nextString();
+						Log.d("sohu", "thumbUrl="+sohuThumbUrl);
+					} else if (name.equals("clipsURL")) {
+						Log.d("sohu", "parse clipsURL");
+						sohuUrls = parseSohuUrls(reader);
+					} else if (name.equals("su")) {
+						Log.d("sohu", "parse su");
+						sohuExtraUrls = parseSohuUrls(reader);
+					} else {
+						if (titleFound && thumbFound && urlFound)
+							return true;
+						reader.skipValue();
+					}
+				}
+				reader.endObject();
+			} else {
+				reader.skipValue();
+			}
+		}
+		reader.endObject();
+		return false;
+	}
+	private String[] parseSohuUrls(JsonReader reader) throws Exception {
+		ArrayList<String> list = new ArrayList<String>();
+		String[] retStr = null;
+		Log.d("sohu", "url list starts:");
+		reader.beginArray();
+		while (reader.hasNext()) {
+			String s = reader.nextString();
+			list.add(s);
+			Log.d("sohu", s);
+		}
+		Log.d("sohu", "url list ends");
+		reader.endArray();
+		retStr = (String[]) list.toArray(new String[list.size()]);
+		return retStr;
 	}
 
 	private void setupActionBar(ActionBar actionBar) {
