@@ -52,7 +52,7 @@
             android:launchMode="singleTask"
             android:theme="@style/Theme.DemocastOverlay" >
             <intent-filter>
-                <action android:name="XBMC.cast" />
+                <action android:name="CloudCast" />
 
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:scheme="http" />

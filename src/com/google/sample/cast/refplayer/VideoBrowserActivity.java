@@ -62,6 +62,7 @@ public class VideoBrowserActivity extends Activity {
 
 	private static final String TAG = "VideoBrowserActivity";
 	private static final String TAG_TENCENT = "VideoBrowserActivity_tencent";
+	private static final String CAST_INTENT_NAME = "CloudCast";
 
 	private VideoCastManager mCastManager;
 	private IVideoCastConsumer mCastConsumer;
@@ -122,7 +123,7 @@ public class VideoBrowserActivity extends Activity {
 			getYoukuVideoInfo("http://v.youku.com/player/getPlayList/VideoIDS/"
 					+ youkuVid);
 
-			Intent intent1 = new Intent("XBMC.cast");
+			Intent intent1 = new Intent(CAST_INTENT_NAME);
 			intent1.setDataAndType(
 					Uri.parse(youkuUrl + "[@]" + youkuTitle + "[@]"
 							+ youkuThumbUrl), null);
@@ -545,7 +546,7 @@ public class VideoBrowserActivity extends Activity {
 					if (matcher.find()) {
 						Log.d(TAG_TENCENT, "streamUrl: " + matcher.group(1));
 
-						Intent intent1 = new Intent("XBMC.cast");
+						Intent intent1 = new Intent(CAST_INTENT_NAME);
 						intent1.setDataAndType(
 								Uri.parse(matcher.group(1) + "[@]"
 										+ tencentTitle + "[@]"
@@ -653,7 +654,7 @@ public class VideoBrowserActivity extends Activity {
 						String redirectUrl = matcher.group(1);
 						Log.d("LeTVreal", "redirect_url=" + redirectUrl);
 
-						Intent intent1 = new Intent("XBMC.cast");
+						Intent intent1 = new Intent(CAST_INTENT_NAME);
 						Log.d("LeTVreal", "new intent was done");
 						intent1.setDataAndType(
 								Uri.parse(redirectUrl + "[@]" + LeTVTitle
@@ -773,7 +774,7 @@ public class VideoBrowserActivity extends Activity {
 					}
 					Log.d("sohu", "sohuUrl=" + sohuUrl);
 
-					Intent intent1 = new Intent("XBMC.cast");
+					Intent intent1 = new Intent(CAST_INTENT_NAME);
 					intent1.setDataAndType(
 							Uri.parse(sohuUrl + "[@]" + sohuTitle
 									+ "[@]" + sohuThumbUrl), null);
