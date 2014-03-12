@@ -88,7 +88,7 @@ public class VideoBrowserActivity extends Activity {
 	String[] sohuExtraUrls = null;
 	String sohuVid = "null";
 
-	public MyObject testobj;
+	public MyObject testobj = null;
 
 	public class MyObject {
 		private Handler handler = null;
@@ -215,6 +215,7 @@ public class VideoBrowserActivity extends Activity {
 	private void castIntent(Intent intent) {
 		String action = intent.getAction();
 		Matcher matcher;
+		testobj = null;
 
 		if (Intent.ACTION_SEND.equals(action) == false) {
 			Log.d(TAG, "not a ACTION_SEND");
@@ -255,6 +256,7 @@ public class VideoBrowserActivity extends Activity {
 			buttonHD.setVisibility(View.INVISIBLE);
 			buttonFHD.setVisibility(View.INVISIBLE);
 			castYouku(youkuVid);
+			return;
 		}
 
 		matcher = Pattern.compile("http://.*v.qq.com/(.+?).html").matcher(
@@ -266,6 +268,7 @@ public class VideoBrowserActivity extends Activity {
 			buttonHD.setVisibility(View.INVISIBLE);
 			buttonFHD.setVisibility(View.INVISIBLE);
 			castTencent("http://v.qq.com/" + matcher.group(1) + ".html");
+			return;
 		}
 
 		// http://m.letv.com/vplay_20020870.html
@@ -277,6 +280,7 @@ public class VideoBrowserActivity extends Activity {
 			Log.d(TAG, "letv vplay id: " + matcher.group(1));
 			castLeTV("http://www.letv.com/ptv/vplay/" + matcher.group(1)
 					+ ".html");
+			return;
 		}
 
 		// http://m.tv.sohu.com/v1647325.shtml?channeled=1210010500
@@ -284,9 +288,13 @@ public class VideoBrowserActivity extends Activity {
 		matcher = Pattern.compile("http://m.tv.sohu.com/v(.+?).shtml(.+?)")
 				.matcher(extraText);
 		if (matcher.find()) {
+			buttonSD.setVisibility(View.INVISIBLE);
+			buttonHD.setVisibility(View.INVISIBLE);
+			buttonFHD.setVisibility(View.INVISIBLE);
 			Log.d(TAG, "sohu url detected: " + matcher.group(0));
 			Log.d(TAG, "sohu vid: " + matcher.group(1));
 			castSohu(matcher.group(0));
+			return;
 		}
 
 		Log.d(TAG, "no existing cast for url: " + extraText);
@@ -847,7 +855,7 @@ public class VideoBrowserActivity extends Activity {
 		Log.d(TAG, "onCreateOptionsMenu() is called. " + VERSION.SDK_INT);
 		super.onCreateOptionsMenu(menu);
 
-		if (VERSION.SDK_INT >= 17)
+		if (VERSION.SDK_INT >= 17 && testobj != null)
 			testobj.Java2Html();
 		// getMenuInflater().inflate(R.menu.main, menu);
 
