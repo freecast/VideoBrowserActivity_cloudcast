@@ -24,6 +24,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.regex.Matcher;
@@ -44,6 +45,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.ActionBarActivity;
+import android.widget.AdapterView.OnItemClickListener;
 import android.support.v7.media.MediaRouter.RouteInfo;
 import android.util.JsonReader;
 import android.util.JsonToken;
@@ -55,10 +57,13 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.ListView;
 import android.widget.Toast;
 
-public class VideoBrowserActivity extends Activity {
+public class VideoBrowserActivity extends Activity implements OnItemClickListener {
 
 	private static final String TAG = "VideoBrowserActivity";
 	private static final String TAG_TENCENT = "VideoBrowserActivity_tencent";
@@ -68,6 +73,8 @@ public class VideoBrowserActivity extends Activity {
 	private IVideoCastConsumer mCastConsumer;
 	private MiniController mMini;
 	private MenuItem mediaRouteMenuItem;
+	
+	private ListView listView;
 
 	private WebView webView = null;
 	public Handler handler = new Handler();
@@ -87,6 +94,7 @@ public class VideoBrowserActivity extends Activity {
 	String sohuUrl = "http://www.sohu.com";
 	String[] sohuUrls = null;
 	String[] sohuExtraUrls = null;
+	String[] sohuFinalUrls = null;
 	String sohuVid = "null";
 
 	public MyObject testobj = null;
@@ -135,7 +143,6 @@ public class VideoBrowserActivity extends Activity {
 
 			return "Html call Java : " + param;
 		}
-
 	}
 
 	/*
@@ -153,65 +160,59 @@ public class VideoBrowserActivity extends Activity {
 		buttonSD = (Button) findViewById(R.id.button1);
 		buttonHD = (Button) findViewById(R.id.button2);
 		buttonFHD = (Button) findViewById(R.id.button3);
-		
 
 		buttonSD.setOnClickListener(new submitOnClieckListener1());
 		buttonHD.setOnClickListener(new submitOnClieckListener2()); 
 		buttonFHD.setOnClickListener(new submitOnClieckListener3()); 		
-		
-		
+
 		castIntent(getIntent());
-
-
 	}
-	
-	   class submitOnClieckListener1 implements OnClickListener{  
-	        @Override  
-	        public void onClick(View v) {  
-	//本地机器部署为服务器，从本地下载a.txt文件内容在textView上显示           
 
-	            new Thread(){  
-	                public void run(){
-	                	MyDefinitionType = "normal";
-	                	Log.v("submitOnClieckListener1","normal");
-		            	RealcastLeTV(LeTVurl,MyDefinitionType); 
-	                	Log.v("submitOnClieckListener1","normal");
-	                    }                     
-	            }.start();                        
-	        }  
-	          
-	    }   
-	  	
-	   class submitOnClieckListener2 implements OnClickListener{  
-	        @Override  
-	        public void onClick(View v) {  
-	//本地机器部署为服务器，从本地下载a.txt文件内容在textView上显示           
+	class submitOnClieckListener1 implements OnClickListener {
+		@Override
+		public void onClick(View v) {
+			// 本地机器部署为服务器，从本地下载a.txt文件内容在textView上显示
 
-	            new Thread(){  
-	                public void run(){
-	                	MyDefinitionType = "high";
-		            	RealcastLeTV(LeTVurl,MyDefinitionType);  
-	                	Log.v("submitOnClieckListener1","high");
-	                    }                     
-	            }.start();                        
-	        }  
-	          
-	    } 	
-	   
-	   class submitOnClieckListener3 implements OnClickListener{  
-	        @Override  
-	        public void onClick(View v) {  
-	//本地机器部署为服务器，从本地下载a.txt文件内容在textView上显示           
+			new Thread() {
+				public void run() {
+					MyDefinitionType = "normal";
+					Log.v("submitOnClieckListener1", "normal");
+					RealcastLeTV(LeTVurl, MyDefinitionType);
+					Log.v("submitOnClieckListener1", "normal");
+				}
+			}.start();
+		}
+	}
 
-	            new Thread(){  
-	                public void run(){
-	                	MyDefinitionType = "super";
-		            	RealcastLeTV(LeTVurl,MyDefinitionType);  
-	                	Log.v("submitOnClieckListener1","super");
-	                    }                     
-	            }.start();                        
-	        }            
-	    } 		
+	class submitOnClieckListener2 implements OnClickListener {
+		@Override
+		public void onClick(View v) {
+			// 本地机器部署为服务器，从本地下载a.txt文件内容在textView上显示
+
+			new Thread() {
+				public void run() {
+					MyDefinitionType = "high";
+					RealcastLeTV(LeTVurl, MyDefinitionType);
+					Log.v("submitOnClieckListener1", "high");
+				}
+			}.start();
+		}
+	}
+
+	class submitOnClieckListener3 implements OnClickListener {
+		@Override
+		public void onClick(View v) {
+			// 本地机器部署为服务器，从本地下载a.txt文件内容在textView上显示
+
+			new Thread() {
+				public void run() {
+					MyDefinitionType = "super";
+					RealcastLeTV(LeTVurl, MyDefinitionType);
+					Log.v("submitOnClieckListener1", "super");
+				}
+			}.start();
+		}
+	}
 
 	private void castIntent(Intent intent) {
 		String action = intent.getAction();
@@ -294,6 +295,7 @@ public class VideoBrowserActivity extends Activity {
 			buttonFHD.setVisibility(View.INVISIBLE);
 			Log.d(TAG, "sohu url detected: " + matcher.group(0));
 			Log.d(TAG, "sohu vid: " + matcher.group(1));
+
 			castSohu(matcher.group(0));
 			return;
 		}
@@ -672,7 +674,7 @@ public class VideoBrowserActivity extends Activity {
 		}.start();
 	}
 
-	/* for PC url 
+    /* for PC url 
 	 * http://tv.sohu.com/20140306/n396178078.shtml
 	 */
 	private void getSohuVid(final String url) {
@@ -698,95 +700,178 @@ public class VideoBrowserActivity extends Activity {
 		}
 
 	}
-	/*
+
+    /*
 	 * for mobile url:
 	 * http://m.tv.sohu.com/v1647325.shtml?channeled=1210010500
 	 */
 	private void castSohu(final String url) {
-		new Thread() {
+    	listVideoSegs(url);
+/*
+    	new Thread() {
 			@Override
 			public void run() {
-				try {
-					Matcher matcher;
-					String content;
-
-					matcher = Pattern.compile("m.tv.sohu.com/v(.+?).shtml").matcher(url);
-					if (matcher.find()) {
-						sohuVid = matcher.group(1);
-						Log.d("sohu", "vid=" + sohuVid);
-					} else {
-						Log.d("sohu", "vid not found in: " + url);
-						System.exit(0);
-					}
-
-					// http://hot.vrs.sohu.com/vrs_flash.action?vid=1475503
-					content = getPictureData("http://hot.vrs.sohu.com/vrs_flash.action?vid="
-							+ sohuVid);
-					InputStream stream = null;
-					JsonReader reader = null;
-
-					stream = getWebPageStream("http://hot.vrs.sohu.com/vrs_flash.action?vid="
-							+ sohuVid);
-					reader = new JsonReader(new InputStreamReader(stream,
-							"UTF-8"));
-
-					parseSohuData(reader);
-					if (sohuUrls.length != sohuExtraUrls.length)
-						return;
-
-					/*
-					 * "http://data.vod.itc.cn/?prot=2&file="        +
-					 * paths[i].replace('http://data.vod.itc.cn','') +
-					 * '&new='+newpaths[i]
-					 */
-					int i;
-					sohuUrl = "";
-					for (i = 0; i < sohuUrls.length; i++) {
-						Matcher match;
-						match = Pattern.compile("http://data.vod.itc.cn(.+?)$").matcher(sohuUrls[i]);
-						if (match.find() == false)
-							System.exit(0);
-						String part1 = match.group(1);
-						Log.d("sohu", "part1=" + part1);
-
-						String strUrl = "http://data.vod.itc.cn/?prot=2&file=" + part1 + "&new=" + sohuExtraUrls[i];
-						content = getPictureData(strUrl);
-						System.out.println(content);
-
-						/*
-						 * http://183.57.146.23/sohu/4/|425|113.90.234.243|3kYEI9wHApB9acO8Ooz1cOjZJjMze5PEnx-qfA..|1|0|1|1803
-						 * url = link.split('|')[0].rstrip("/")+newpaths[i]+'?key='+key
-						 */
-						match = Pattern.compile("^(.+?)/\\|(.+?)\\|(.+?)\\|(.+?)\\|").matcher(content);
-						if (match.find() == false)
-							System.exit(0);
-
-						String key = match.group(4);
-						Log.d("sohu", "key=" + key);
-
-						part1 = match.group(1);
-						if (part1 == null)
-							return;
-						strUrl = part1 + sohuExtraUrls[i] + "?key=" + key;
-						sohuUrl = sohuUrl + strUrl;
-						if (i < sohuUrls.length - 1)
-							sohuUrl = sohuUrl + " , ";
-					}
-					Log.d("sohu", "sohuUrl=" + sohuUrl);
-
-					Intent intent1 = new Intent(CAST_INTENT_NAME);
-					intent1.setDataAndType(
-							Uri.parse(sohuUrl + "[@]" + sohuTitle
-									+ "[@]" + sohuThumbUrl), null);
-					startActivity(intent1);
-					System.exit(0);
-				} catch (Exception e) {
-					Log.e("sohu", e.toString());
-					System.exit(0);
-				}
+				//geturl();
+				//initData(lv);
 			}
-		}.start();
+
+		};*/
 	}
+
+	@Override
+	public void onItemClick(AdapterView<?> parent, View view, int position,
+			long id) {
+		Log.d(TAG, "position:" + position + "  item:"
+				+ parent.getItemAtPosition(position).toString());
+
+		Intent intent1 = new Intent(CAST_INTENT_NAME);
+		int section = position+1;
+		String title = sohuTitle + " 片段" + section;
+		intent1.setDataAndType(
+				Uri.parse(sohuFinalUrls[position] + "[@]" + title + "[@]"
+						+ sohuThumbUrl), null);
+		startActivity(intent1);
+	}
+
+	public String geturl(String url) {
+		try {
+			Matcher matcher;
+			String content;
+			ArrayList<String> list = new ArrayList<String>();
+
+			matcher = Pattern.compile("m.tv.sohu.com/v(.+?).shtml").matcher(url);
+			if (matcher.find()) {
+				sohuVid = matcher.group(1);
+				Log.d("sohu", "vid=" + sohuVid);
+			} else {
+				Log.d("sohu", "vid not found in: " + url);
+				return null;
+			}
+
+			// http://hot.vrs.sohu.com/vrs_flash.action?vid=1475503
+			content = getPictureData("http://hot.vrs.sohu.com/vrs_flash.action?vid="
+					+ sohuVid);
+			InputStream stream = null;
+			JsonReader reader = null;
+
+			stream = getWebPageStream("http://hot.vrs.sohu.com/vrs_flash.action?vid="
+					+ sohuVid);
+			reader = new JsonReader(new InputStreamReader(stream,
+					"UTF-8"));
+
+			parseSohuData(reader);
+			if (sohuUrls.length != sohuExtraUrls.length)
+				return null;
+
+			/*
+			 * "http://data.vod.itc.cn/?prot=2&file="        +
+			 * paths[i].replace('http://data.vod.itc.cn','') +
+			 * '&new='+newpaths[i]
+			 */
+			int i;
+			sohuUrl = "";
+			for (i = 0; i < sohuUrls.length; i++) {
+				Matcher match;
+				match = Pattern.compile("http://data.vod.itc.cn(.+?)$").matcher(sohuUrls[i]);
+				if (match.find() == false)
+					System.exit(0);
+				String part1 = match.group(1);
+				Log.d("sohu", "part1=" + part1);
+
+				String strUrl = "http://data.vod.itc.cn/?prot=2&file=" + part1 + "&new=" + sohuExtraUrls[i];
+				content = getPictureData(strUrl);
+				System.out.println(content);
+
+				/*
+				 * http://183.57.146.23/sohu/4/|425|113.90.234.243|3kYEI9wHApB9acO8Ooz1cOjZJjMze5PEnx-qfA..|1|0|1|1803
+				 * url = link.split('|')[0].rstrip("/")+newpaths[i]+'?key='+key
+				 */
+				match = Pattern.compile("^(.+?)/\\|(.+?)\\|(.+?)\\|(.+?)\\|").matcher(content);
+				if (match.find() == false)
+					System.exit(0);
+
+				String key = match.group(4);
+				Log.d("sohu", "key=" + key);
+
+				part1 = match.group(1);
+				if (part1 == null)
+					return null;
+				strUrl = part1 + sohuExtraUrls[i] + "?key=" + key;
+				list.add(strUrl);
+				sohuUrl = sohuUrl + strUrl;
+				if (i < sohuUrls.length - 1)
+					sohuUrl = sohuUrl + " , ";
+			}
+			sohuFinalUrls = (String[]) list.toArray(new String[list.size()]);
+			Log.d("sohu", "sohuUrl=" + sohuUrl);
+
+			if (sohuFinalUrls.length == 1) {
+				Intent intent1 = new Intent(CAST_INTENT_NAME);
+				intent1.setDataAndType(
+						Uri.parse(sohuUrl + "[@]" + sohuTitle + "[@]"
+								+ sohuThumbUrl), null);
+				startActivity(intent1);
+				System.exit(0);
+			}
+
+			return sohuUrl;
+		} catch (Exception e) {
+			Log.e("sohu", e.toString());
+			//System.exit(0);
+		}
+		return null;
+	}
+
+	List<String> data;
+    private void appendData(String url) {
+        if (data == null)
+            return;
+        geturl(url);
+        for (int i = 1; i <= sohuFinalUrls.length; i++)
+            data.add(sohuTitle + " 片段" + i);
+    }
+    class DataLoadThread extends Thread {
+    	private ArrayAdapter<String> adapter;
+    	String url;
+    	DataLoadThread(ArrayAdapter<String> adapter, String url) {
+    		this.adapter = adapter;
+    		this.url = url;
+    	}
+        @Override
+        public void run() {
+            try {
+                Thread.sleep(2000);
+                appendData(url);
+                // 因为Android控件只能通过主线程（ui线程）更新，所以用此方法
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        // 当数据改变时调用此方法通知view更新
+                        adapter.notifyDataSetChanged();
+                    }
+                });
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+    private void listVideoSegs(String url) {
+		ArrayAdapter<String> adapter;
+    	ListView lv = (ListView) findViewById(R.id.list);
+        data = new ArrayList<String>();
+
+		if (lv == null)
+            return;
+
+        adapter = new ArrayAdapter<String>(this, R.layout.video_browser,
+                R.id.text1, data);
+        lv.setAdapter(adapter);
+		lv.setOnItemClickListener(this);
+
+		DataLoadThread currentThread = new DataLoadThread(adapter, url);
+		currentThread.start();
+    }
+
 	public boolean parseSohuData(JsonReader reader) throws Exception {
 		String name;
 		boolean thumbFound = false;

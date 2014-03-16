@@ -3,6 +3,12 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent" >
 
+    <ListView
+        android:id="@+id/list"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_alignParentLeft="true" />
+
     <WebView
         android:id="@+id/webView1"
         android:layout_width="match_parent"
@@ -40,4 +46,10 @@
         android:layout_marginTop="42dp"
         android:text="高清" />
 
+    <TextView
+	    android:id="@+id/text1"
+	    android:layout_width="match_parent"
+	    android:layout_height="wrap_content"
+	    android:padding="5dp"
+	    android:textIsSelectable="false" />
 </RelativeLayout>
