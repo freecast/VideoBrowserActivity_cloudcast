@@ -291,8 +291,12 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 				.matcher(extraText);
 		if (matcher.find()) {
 			buttonSD.setVisibility(View.INVISIBLE);
+			buttonSD.setVisibility(View.GONE);
 			buttonHD.setVisibility(View.INVISIBLE);
+			buttonHD.setVisibility(View.GONE);
 			buttonFHD.setVisibility(View.INVISIBLE);
+			buttonFHD.setVisibility(View.GONE);
+
 			Log.d(TAG, "sohu url detected: " + matcher.group(0));
 			Log.d(TAG, "sohu vid: " + matcher.group(1));
 
@@ -568,48 +572,58 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 		new Thread() {
 			@Override
 			public void run() {
-				try {	
-						Matcher matcher;
-						String LeTVThumbUrl = "http://i1.letvimg.com/img/201206/29/iphonelogo.png";
-						String LeTVTitle = "乐视视频";
-						String content;
-						String LeTVVid = "null";
-						
-						LeTVurl = url;
+				try {
+					Matcher matcher;
+					String LeTVThumbUrl = "http://i1.letvimg.com/img/201206/29/iphonelogo.png";
+					String LeTVTitle = "乐视视频";
+					String content;
+					String LeTVVid = "null";
 
-						content = getPictureData("http://www.flvcd.com/parse.php?kw="
-								+ url + "&format=" + "normal");
-						//System.out.println(content);
+					boolean superFound = false;
+					boolean hdFound = false;
+					LeTVurl = url;
 
-						matcher = Pattern.compile("format=high(.+?)").matcher(
-								content);
-						if (matcher.find()) {
-							buttonHD.setVisibility(View.VISIBLE);
-							Log.d("LeTV", "buttonHD= VISIBLE");
-						}else{
-							buttonHD.setVisibility(View.INVISIBLE);
-							Log.d("LeTV", "buttonHD= INVISIBLE");
-						}
-						
-						matcher = Pattern.compile("format=super(.+?)").matcher(
-								content);
-						if (matcher.find()) {
-							buttonFHD.setVisibility(View.VISIBLE);
-							Log.d("LeTV", "buttonFHD= VISIBLE");							
-						}else{
-							buttonFHD.setVisibility(View.INVISIBLE);
-							Log.d("LeTV", "buttonFHD= INVISIBLE");		
-						}
-						
-						buttonSD.setVisibility(View.VISIBLE);
-						Log.d("LeTV", "buttonSD= VISIBLE");
+					content = getPictureData("http://www.flvcd.com/parse.php?kw="
+							+ url + "&format=" + "normal");
+					// System.out.println(content);
 
+					Log.d("LeTV", "buttonSD= VISIBLE");
+
+					matcher = Pattern.compile("format=high(.+?)").matcher(
+							content);
+					if (matcher.find()) {
+						hdFound = true;
+						Log.d("LeTV", "buttonHD= VISIBLE");
+					} else {
+						Log.d("LeTV", "buttonHD= INVISIBLE");
 					}
-				catch (Exception e) {
+
+					matcher = Pattern.compile("format=super(.+?)").matcher(
+							content);
+					if (matcher.find()) {
+						superFound = true;
+						Log.d("LeTV", "buttonFHD= VISIBLE");
+					} else {
+						Log.d("LeTV", "buttonFHD= INVISIBLE");
+					}
+
+					final boolean HDvisible = hdFound;
+					final boolean superVisible = superFound;
+					runOnUiThread(new Runnable() {
+						@Override
+						public void run() {
+							buttonSD.setVisibility(View.VISIBLE);
+							if (HDvisible)
+								buttonHD.setVisibility(View.VISIBLE);
+							if (superVisible)
+								buttonFHD.setVisibility(View.VISIBLE);
+						}
+					});
+				} catch (Exception e) {
 					Log.e("LeTV", e.toString());
 					System.exit(0);
-					}
-			}		
+				}
+			}
 
 		}.start();
 	}

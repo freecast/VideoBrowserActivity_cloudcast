@@ -26,7 +26,8 @@
         android:layout_alignParentTop="true"
         android:layout_centerHorizontal="true"
         android:layout_marginTop="60dp"
-        android:text="标清" />
+        android:text="标清"
+        android:visibility="gone" />
 
     <Button
         android:id="@+id/button3"
@@ -35,7 +36,8 @@
         android:layout_alignLeft="@+id/button2"
         android:layout_below="@+id/button2"
         android:layout_marginTop="42dp"
-        android:text="超清" />
+        android:text="超清"
+        android:visibility="gone" />
 
     <Button
         android:id="@+id/button2"
@@ -44,7 +46,8 @@
         android:layout_alignLeft="@+id/button1"
         android:layout_below="@+id/button1"
         android:layout_marginTop="42dp"
-        android:text="高清" />
+        android:text="高清"
+        android:visibility="gone" />
 
     <TextView
 	    android:id="@+id/text1"
