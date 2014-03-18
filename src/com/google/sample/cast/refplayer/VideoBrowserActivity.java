@@ -83,6 +83,8 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 	private Button buttonFHD;
 	private String MyDefinitionType;
 	private String LeTVurl;
+	
+	private String webSite;
 
 	String youkuTitle = "优酷视频";
 	String youkuThumbUrl = "http://static.youku.com/index/img/header/yklogo.png?qq-pf-to=pcqq.c2c";
@@ -96,6 +98,10 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 	String[] sohuExtraUrls = null;
 	String[] sohuFinalUrls = null;
 	String sohuVid = "null";
+
+	List<String> listData;
+	ArrayAdapter<String> listAdapter;
+	ListView lv;
 
 	public MyObject testobj = null;
 
@@ -165,7 +171,21 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 		buttonHD.setOnClickListener(new submitOnClieckListener2()); 
 		buttonFHD.setOnClickListener(new submitOnClieckListener3()); 		
 
-		castIntent(getIntent());
+		lv = (ListView) findViewById(R.id.list);
+
+		listData = new ArrayList<String>();
+		listData.add("loading......");
+        listAdapter = new ArrayAdapter<String>(this, R.layout.video_browser,
+                R.id.text1, listData);
+        lv.setAdapter(listAdapter);
+        listAdapter.notifyDataSetChanged();
+
+        final Intent intent = getIntent();
+		new Thread() {
+			public void run() {
+				castIntent(intent);
+			}
+		}.start();
 	}
 
 	class submitOnClieckListener1 implements OnClickListener {
@@ -251,12 +271,11 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 		matcher = Pattern.compile("http://.*v.youku.com(.+?)/id_(.+?).html")
 				.matcher(extraText);
 		if (matcher.find()) {
+			webSite = "youku";
 			youkuVid = matcher.group(2);
 			Log.d(TAG, "youku url detected: " + matcher.group(0));
 			Log.d(TAG, "youku vid: " + youkuVid);
-			buttonSD.setVisibility(View.INVISIBLE);
-			buttonHD.setVisibility(View.INVISIBLE);
-			buttonFHD.setVisibility(View.INVISIBLE);
+
 			castYouku(youkuVid);
 			return;
 		}
@@ -264,11 +283,10 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 		matcher = Pattern.compile("http://.*v.qq.com/(.+?).html").matcher(
 				extraText);
 		if (matcher.find()) {
+			webSite = "qq";
 			Log.d(TAG, "tencent url detected: " + matcher.group(0));
 			Log.d(TAG, "tencent partial url: " + matcher.group(1));
-			buttonSD.setVisibility(View.INVISIBLE);
-			buttonHD.setVisibility(View.INVISIBLE);
-			buttonFHD.setVisibility(View.INVISIBLE);
+
 			castTencent("http://v.qq.com/" + matcher.group(1) + ".html");
 			return;
 		}
@@ -278,6 +296,7 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 		matcher = Pattern.compile("http://.*letv.com/vplay_(.+?).html")
 				.matcher(extraText);
 		if (matcher.find()) {
+			webSite = "letv";
 			Log.d(TAG, "letv url detected: " + matcher.group(0));
 			Log.d(TAG, "letv vplay id: " + matcher.group(1));
 			castLeTV("http://www.letv.com/ptv/vplay/" + matcher.group(1)
@@ -290,13 +309,7 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 		matcher = Pattern.compile("http://m.tv.sohu.com/v(.+?).shtml(.+?)")
 				.matcher(extraText);
 		if (matcher.find()) {
-			buttonSD.setVisibility(View.INVISIBLE);
-			buttonSD.setVisibility(View.GONE);
-			buttonHD.setVisibility(View.INVISIBLE);
-			buttonHD.setVisibility(View.GONE);
-			buttonFHD.setVisibility(View.INVISIBLE);
-			buttonFHD.setVisibility(View.GONE);
-
+			webSite = "sohu";
 			Log.d(TAG, "sohu url detected: " + matcher.group(0));
 			Log.d(TAG, "sohu vid: " + matcher.group(1));
 
@@ -567,8 +580,30 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 			}
 		}.start();
 	}
+	public class LeTVlistener implements OnItemClickListener {
+		public void onItemClick(AdapterView<?> parent, View view, int position,
+				long id) {
+			String definition = "normal";
+			Log.d(TAG, "position:" + position + "  item:"
+					+ parent.getItemAtPosition(position).toString());
+
+			if (position == 1)
+				definition = "high";
+			else if (position == 2)
+				definition = "super";
+
+			Log.v("LeTVlistItemListener", definition);
+			RealcastLeTV(LeTVurl, definition);
+			Log.v("LeTVlistItemListener", definition + " cast finished");
+		}
+	}
 
 	private void castLeTV(final String url) {
+        listAdapter = new ArrayAdapter<String>(this, R.layout.video_browser,
+                R.id.text1, listData);
+        lv.setAdapter(listAdapter);
+		lv.setOnItemClickListener(new LeTVlistener());
+
 		new Thread() {
 			@Override
 			public void run() {
@@ -612,12 +647,21 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 					runOnUiThread(new Runnable() {
 						@Override
 						public void run() {
+							listData.clear();
+							listData.add("标清");
+							if (HDvisible)
+								listData.add("高清");
+							if (superVisible)
+								listData.add("超清");
+					        listAdapter.notifyDataSetChanged();
+/*
 							buttonSD.setVisibility(View.VISIBLE);
 							if (HDvisible)
 								buttonHD.setVisibility(View.VISIBLE);
 							if (superVisible)
 								buttonFHD.setVisibility(View.VISIBLE);
-						}
+*/
+					        }
 					});
 				} catch (Exception e) {
 					Log.e("LeTV", e.toString());
@@ -739,7 +783,7 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 				+ parent.getItemAtPosition(position).toString());
 
 		Intent intent1 = new Intent(CAST_INTENT_NAME);
-		int section = position+1;
+		int section = position + 1;
 		String title = sohuTitle + " 片段" + section;
 		intent1.setDataAndType(
 				Uri.parse(sohuFinalUrls[position] + "[@]" + title + "[@]"
@@ -836,13 +880,12 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 		return null;
 	}
 
-	List<String> data;
     private void appendData(String url) {
-        if (data == null)
+        if (listData == null)
             return;
         geturl(url);
         for (int i = 1; i <= sohuFinalUrls.length; i++)
-            data.add(sohuTitle + " 片段" + i);
+            listData.add(sohuTitle + " 片段" + i);
     }
     class DataLoadThread extends Thread {
     	private ArrayAdapter<String> adapter;
@@ -870,19 +913,17 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
         }
     }
     private void listVideoSegs(String url) {
-		ArrayAdapter<String> adapter;
-    	ListView lv = (ListView) findViewById(R.id.list);
-        data = new ArrayList<String>();
+        listData = new ArrayList<String>();
 
 		if (lv == null)
             return;
 
-        adapter = new ArrayAdapter<String>(this, R.layout.video_browser,
-                R.id.text1, data);
-        lv.setAdapter(adapter);
+        listAdapter = new ArrayAdapter<String>(this, R.layout.video_browser,
+                R.id.text1, listData);
+        lv.setAdapter(listAdapter);
 		lv.setOnItemClickListener(this);
 
-		DataLoadThread currentThread = new DataLoadThread(adapter, url);
+		DataLoadThread currentThread = new DataLoadThread(listAdapter, url);
 		currentThread.start();
     }
 
