@@ -2,7 +2,7 @@
 <resources>
 
     <string name="app_name">Cloud Cast</string>
-    <string name="app_id">B7F6ED4B</string>
+    <string name="app_id">C2F5B36A</string>
     <string name="action_settings">Settings</string>
     <string name="hello_world">Hello world!</string>
     <string name="cast_app_name">GoogleCastPlayer</string>
