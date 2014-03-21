@@ -688,11 +688,13 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 					content = getPictureData(url);
 					//System.out.println(content);
 
-					matcher = Pattern.compile("img:	\"(.+?)\"").matcher(
+					matcher = Pattern.compile("img:\\s*\"(.+?)\"").matcher(
 							content);
 					if (matcher.find()) {
 						LeTVThumbUrl = matcher.group(1);
 						Log.d("LeTVreal", "LeTVThumbUrl=" + LeTVThumbUrl);
+					} else {
+						Log.d("LeTVreal", "LeTVThumbUrl not found");
 					}
 
 					matcher = Pattern.compile("irTitle\" content=\"(.+?)\"")
