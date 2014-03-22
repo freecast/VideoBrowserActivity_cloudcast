@@ -99,6 +99,11 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 	String[] sohuFinalUrls = null;
 	String sohuVid = "null";
 
+	String tencentThumbUrl = "http://imgcache.gtimg.cn/tencentvideo_v1/vstyle/web/v3/style/images/logo.png";
+	String tencentTitle = "腾讯视频";
+	String content = "null";
+	String tencentVid = "null";
+
 	List<String> listData;
 	ArrayAdapter<String> listAdapter;
 	ListView lv;
@@ -268,28 +273,11 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 			return;
 		}
 
-		matcher = Pattern.compile("http://.*v.youku.com(.+?)/id_(.+?).html")
-				.matcher(extraText);
-		if (matcher.find()) {
-			webSite = "youku";
-			youkuVid = matcher.group(2);
-			Log.d(TAG, "youku url detected: " + matcher.group(0));
-			Log.d(TAG, "youku vid: " + youkuVid);
-
-			castYouku(youkuVid);
+		if (castYouku(extraText) == true)
 			return;
-		}
 
-		matcher = Pattern.compile("http://.*v.qq.com/(.+?).html").matcher(
-				extraText);
-		if (matcher.find()) {
-			webSite = "qq";
-			Log.d(TAG, "tencent url detected: " + matcher.group(0));
-			Log.d(TAG, "tencent partial url: " + matcher.group(1));
-
-			castTencent("http://v.qq.com/" + matcher.group(1) + ".html");
+		if (castTencent(extraText) == true)
 			return;
-		}
 
 		// http://m.letv.com/vplay_20020870.html
 		// http://www.letv.com/ptv/vplay/20020870.html
@@ -321,7 +309,21 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 	}
 
 	@SuppressLint("SetJavaScriptEnabled")
-	private void castYouku(String vid) {
+	private boolean castYouku(String url) {
+		Matcher matcher;
+		matcher = Pattern.compile("http://.*v.youku.com(.+?)/id_(.+?).html")
+				.matcher(url);
+		if (matcher.find()) {
+			webSite = "youku";
+			youkuVid = matcher.group(2);
+			Log.d(TAG, "youku url detected: " + matcher.group(0));
+			Log.d(TAG, "youku vid: " + youkuVid);
+
+			castYouku(youkuVid);
+		} else {
+			return false;
+		}
+
 		webView = (WebView) this.findViewById(R.id.webView1);
 		webView.setVisibility(View.INVISIBLE);
 		webView.setVisibility(View.GONE);
@@ -334,6 +336,8 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 		Log.d(TAG, "webView load youkump4.html");
 		webView.loadUrl("file:///android_asset/youkump4.html");
 		Log.d(TAG, "webView load youkump4.html done!");
+
+		return true;
 	}
 
 	public void getYoukuVideoInfo(String path) {
@@ -470,7 +474,30 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 		return outStream.toByteArray();
 	}
 
-	private void castTencent(final String url) {
+	private boolean castTencent(String url) {
+		Matcher matcher;
+		matcher = Pattern.compile("http://.*v.qq.com/(.+?).html(.*)").matcher(url);
+		if (matcher.find()) {
+			webSite = "qq";
+			Log.d(TAG_TENCENT, "tencent url detected: " + matcher.group(0));
+			Log.d(TAG_TENCENT, "tencent partial url: " + matcher.group(1));
+		} else {
+			return false;
+		}
+		url = "http://v.qq.com/" + matcher.group(1) + ".html" + matcher.group(2);
+
+		final String qqUrl;
+		matcher = Pattern.compile("cid=(.+?)&vid=(.+?)$").matcher(url);
+		if (matcher.find()) {
+			//String cid = matcher.group(1);
+			String vid = matcher.group(2);
+			tencentBoke(vid);
+			return true;
+		} else {
+			qqUrl = url;
+		}
+		Log.d(TAG_TENCENT, "qqUrl = " + qqUrl);
+		//qqUrl = url;
 		new Thread() {
 			@Override
 			public void run() {
@@ -481,12 +508,8 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 					// System.out.println(test);
 					Matcher matcher;
 					//String tencentThumbUrl = "file:///android_asset/tencent.png";
-					String tencentThumbUrl = "http://imgcache.gtimg.cn/tencentvideo_v1/vstyle/web/v3/style/images/logo.png";
-					String tencentTitle = "腾讯视频";
-					String content;
-					String tencentVid = "null";
 
-					content = getPictureData(url);
+					content = getPictureData(qqUrl);
 					System.out.println(content);
 
 					matcher = Pattern.compile(
@@ -525,35 +548,7 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 							}
 						}
 					} else {
-						matcher = Pattern.compile("vid:\"(.+?)\"").matcher(
-								content);
-						if (matcher.find()) {
-							tencentVid = matcher.group(1);
-							Log.d(TAG_TENCENT, "tencentVid: " + tencentVid);
-						} else {
-							Log.e(TAG_TENCENT, "tencentVid not found");
-							return;
-						}
-						matcher = Pattern.compile("pic :\"(.+?)\"").matcher(
-								content);
-						if (matcher.find()) {
-							tencentThumbUrl = matcher.group(1);
-							Log.d(TAG_TENCENT, "tencentThumbUrl: "
-									+ tencentThumbUrl);
-						} else {
-							Log.d(TAG_TENCENT, "tencentThumbUrl not found, "
-									+ tencentThumbUrl + " will be used");
-						}
-
-						matcher = Pattern.compile("title :\"(.+?)\"").matcher(
-								content);
-						if (matcher.find()) {
-							tencentTitle = matcher.group(1);
-							Log.d(TAG_TENCENT, "tencentTitle: " + tencentTitle);
-						} else {
-							Log.d(TAG_TENCENT, "tencentTitle not found, "
-									+ tencentTitle + " will be used");
-						}
+						tencentDirectURL(qqUrl, content);
 					}
 
 					content = getPictureData("http://vv.video.qq.com/geturl?vid="
@@ -575,11 +570,96 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 					}
 				} catch (Exception e) {
 					Log.e(TAG_TENCENT, e.toString());
-					System.exit(0);
+					e.printStackTrace();
+					//System.exit(0);
 				}
 			}
 		}.start();
+		return true;
 	}
+	//<!-- 兼容v.qq.com老的播放页面跳转到boke 放到v.qq.com/play.html -->
+	//<title>腾讯播客-实拍中国家属被马航带离 大声哭喊：救救我</title>
+	private boolean tencentBoke(String vid) {
+		Matcher matcher;
+		try {
+			content = getPictureData("http://play.v.qq.com/play?vid="+vid);
+			matcher = Pattern.compile("<title>(.*)</title>").matcher(content);
+			if (matcher.find())
+				tencentTitle = matcher.group(1);
+		} catch (Exception e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+			return false;
+		}
+
+		try {
+			content = getPictureData("http://vv.video.qq.com/geturl?vid="
+					+ vid
+					+ "&otype=xml&platform=1&ran=0%2E9652906153351068");
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			return false;
+		}
+		// System.out.println(test2);
+		matcher = Pattern.compile("<url>(.+?)</url>").matcher(
+				content);
+		if (matcher.find()) {
+			Log.d(TAG_TENCENT, "streamUrl: " + matcher.group(1));
+
+			Intent intent1 = new Intent(CAST_INTENT_NAME);
+			intent1.setDataAndType(
+					Uri.parse(matcher.group(1) + "[@]"
+							+ tencentTitle + "[@]"
+							+ tencentThumbUrl), null);
+			startActivity(intent1);
+			System.exit(0);
+		}
+
+		return true;
+	}
+	private void tencentDirectURL(String url, String content) {
+		Matcher matcher;
+		matcher = Pattern.compile("\\?vid=(.+?)$").matcher(url);
+		if (matcher.find()) {
+			tencentVid = matcher.group(1);
+			Log.d(TAG_TENCENT+"directURL", "vid found in url: " + tencentVid);
+		} else {
+			matcher = Pattern.compile("vid:\"(.+?)\"").matcher(
+					content);
+			if (matcher.find()) {
+				tencentVid = matcher.group(1);
+				Log.d(TAG_TENCENT, "tencentVid: " + tencentVid);
+			} else {
+				Log.e(TAG_TENCENT, "tencentVid not found");
+				return;
+			}
+		}
+
+		matcher = Pattern.compile("pic :\"(.+?)\"").matcher(
+				content);
+		if (matcher.find()) {
+			tencentThumbUrl = matcher.group(1);
+			Log.d(TAG_TENCENT, "tencentThumbUrl: "
+					+ tencentThumbUrl);
+		} else {
+			Log.d(TAG_TENCENT, "tencentThumbUrl not found, "
+					+ tencentThumbUrl + " will be used");
+		}
+
+		// id="s0014qqdkhn"  title="一仆二主 第01集"
+		matcher = Pattern.compile("id=\"" + tencentVid + "\".*title=\"(.+?)\"").matcher(
+				content);
+		if (matcher.find()) {
+			tencentTitle = matcher.group(1);
+			Log.d(TAG_TENCENT, "tencentTitle: " + tencentTitle);
+		} else {
+			Log.d(TAG_TENCENT, "tencentTitle not found, "
+					+ tencentTitle + " will be used");
+		}
+	}
+
+
 	public class LeTVlistener implements OnItemClickListener {
 		public void onItemClick(AdapterView<?> parent, View view, int position,
 				long id) {
