@@ -279,6 +279,9 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 		if (castTencent(extraText) == true)
 			return;
 
+		if (castSohu(extraText) == true)
+			return;
+
 		// http://m.letv.com/vplay_20020870.html
 		// http://www.letv.com/ptv/vplay/20020870.html
 		matcher = Pattern.compile("http://.*letv.com/vplay_(.+?).html")
@@ -292,18 +295,7 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 			return;
 		}
 
-		// http://m.tv.sohu.com/v1647325.shtml?channeled=1210010500
-		// http://tv.sohu.com/20140306/n396178078.shtml
-		matcher = Pattern.compile("http://m.tv.sohu.com/v(.+?).shtml(.+?)")
-				.matcher(extraText);
-		if (matcher.find()) {
-			webSite = "sohu";
-			Log.d(TAG, "sohu url detected: " + matcher.group(0));
-			Log.d(TAG, "sohu vid: " + matcher.group(1));
 
-			castSohu(matcher.group(0));
-			return;
-		}
 
 		Log.d(TAG, "no existing cast for url: " + extraText);
 	}
@@ -842,20 +834,20 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 	}
 
     /*
-	 * for mobile url:
 	 * http://m.tv.sohu.com/v1647325.shtml?channeled=1210010500
+	 * http://m.tv.sohu.com/20140306/n396178078.shtml
 	 */
-	private void castSohu(final String url) {
-    	listVideoSegs(url);
-/*
-    	new Thread() {
-			@Override
-			public void run() {
-				//geturl();
-				//initData(lv);
-			}
+	private boolean castSohu(String url) {
+		Matcher matcher;
 
-		};*/
+		matcher = Pattern.compile("http://.*tv\\.sohu\\.com")
+				.matcher(url);
+		if (matcher.find() == false)
+			return false;
+
+		Log.d(TAG, "sohu url detected: " + url);
+		listVideoSegs(url);
+		return true;
 	}
 
 	@Override
@@ -882,15 +874,19 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 			matcher = Pattern.compile("m.tv.sohu.com/v(.+?).shtml").matcher(url);
 			if (matcher.find()) {
 				sohuVid = matcher.group(1);
-				Log.d("sohu", "vid=" + sohuVid);
 			} else {
-				Log.d("sohu", "vid not found in: " + url);
-				return null;
+				content = getPictureData(url);
+				matcher = Pattern.compile("vid : \"(.+?)\"").matcher(content);
+				if (matcher.find()) {
+					sohuVid = matcher.group(1);
+				} else {
+					Log.d("sohu", "vid not found in: " + url);
+					return null;
+				}
 			}
+			Log.d("sohu", "vid=" + sohuVid);
 
 			// http://hot.vrs.sohu.com/vrs_flash.action?vid=1475503
-			content = getPictureData("http://hot.vrs.sohu.com/vrs_flash.action?vid="
-					+ sohuVid);
 			InputStream stream = null;
 			JsonReader reader = null;
 
@@ -957,6 +953,7 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 			return sohuUrl;
 		} catch (Exception e) {
 			Log.e("sohu", e.toString());
+			e.printStackTrace();
 			//System.exit(0);
 		}
 		return null;
