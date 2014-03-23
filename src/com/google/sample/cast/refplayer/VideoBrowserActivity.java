@@ -310,6 +310,8 @@ public class VideoBrowserActivity extends Activity implements
 			youkuVid = matcher.group(2);
 			Log.d(TAG, "youku url detected: " + matcher.group(0));
 			Log.d(TAG, "youku vid: " + youkuVid);
+		} else {
+			return false;
 		}
 		
 		try {
