@@ -63,7 +63,8 @@ import android.widget.Button;
 import android.widget.ListView;
 import android.widget.Toast;
 
-public class VideoBrowserActivity extends Activity implements OnItemClickListener {
+public class VideoBrowserActivity extends Activity implements
+		OnItemClickListener {
 
 	private static final String TAG = "VideoBrowserActivity";
 	private static final String TAG_TENCENT = "VideoBrowserActivity_tencent";
@@ -73,7 +74,7 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 	private IVideoCastConsumer mCastConsumer;
 	private MiniController mMini;
 	private MenuItem mediaRouteMenuItem;
-	
+
 	private ListView listView;
 
 	private WebView webView = null;
@@ -83,7 +84,7 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 	private Button buttonFHD;
 	private String MyDefinitionType;
 	private String LeTVurl;
-	
+
 	private String webSite;
 
 	String youkuTitle = "优酷视频";
@@ -125,8 +126,8 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 				public void run() {
 					Log.d(TAG, "MyObject.init run()");
 					if (VERSION.SDK_INT < 17)
-						webView.loadUrl("javascript:showHtmlcallJava2('" + youkuVid
-								+ "')");
+						webView.loadUrl("javascript:showHtmlcallJava2('"
+								+ youkuVid + "')");
 				}
 			});
 		}
@@ -173,19 +174,19 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 		buttonFHD = (Button) findViewById(R.id.button3);
 
 		buttonSD.setOnClickListener(new submitOnClieckListener1());
-		buttonHD.setOnClickListener(new submitOnClieckListener2()); 
-		buttonFHD.setOnClickListener(new submitOnClieckListener3()); 		
+		buttonHD.setOnClickListener(new submitOnClieckListener2());
+		buttonFHD.setOnClickListener(new submitOnClieckListener3());
 
 		lv = (ListView) findViewById(R.id.list);
 
 		listData = new ArrayList<String>();
 		listData.add("loading......");
-        listAdapter = new ArrayAdapter<String>(this, R.layout.video_browser,
-                R.id.text1, listData);
-        lv.setAdapter(listAdapter);
-        listAdapter.notifyDataSetChanged();
+		listAdapter = new ArrayAdapter<String>(this, R.layout.video_browser,
+				R.id.text1, listData);
+		lv.setAdapter(listAdapter);
+		listAdapter.notifyDataSetChanged();
 
-        final Intent intent = getIntent();
+		final Intent intent = getIntent();
 		new Thread() {
 			public void run() {
 				castIntent(intent);
@@ -295,13 +296,12 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 			return;
 		}
 
-
-
 		Log.d(TAG, "no existing cast for url: " + extraText);
 	}
 
-	@SuppressLint("SetJavaScriptEnabled")
 	private boolean castYouku(String url) {
+		InputStream stream = null;
+		JsonReader reader = null;
 		Matcher matcher;
 		matcher = Pattern.compile("http://.*v.youku.com(.+?)/id_(.+?).html")
 				.matcher(url);
@@ -310,8 +310,52 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 			youkuVid = matcher.group(2);
 			Log.d(TAG, "youku url detected: " + matcher.group(0));
 			Log.d(TAG, "youku vid: " + youkuVid);
+		}
+		
+		try {
+			url = "http://v.youku.com/player/getPlayList/VideoIDS/" + youkuVid + "/Pf/4?__callback=?";
+			stream = getWebPageStream(url);
+			byte[] data = readInputStream(stream);// 得到html的二进制数据
+			String html = new String(data, "utf8");
+			System.out.println(html);
 
-			castYouku(youkuVid);
+			stream = getWebPageStream(url);
+			reader = new JsonReader(new InputStreamReader(stream, "UTF-8"));
+
+			youkuUrl = parseYoukuData(reader);
+			if (youkuUrl != null) {
+				Log.d("youku", "youkuUrl: " + youkuUrl);
+
+				Intent intent1 = new Intent(CAST_INTENT_NAME);
+				intent1.setDataAndType(
+						Uri.parse(youkuUrl + "[@]" + youkuTitle + "[@]"
+								+ youkuThumbUrl), null);
+
+				Log.d("youku", "intent was prepared");
+				startActivity(intent1);
+				Log.d("youku", "activity was started");
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		} finally {
+			try {
+				reader.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+		return true;
+	}
+	@SuppressLint("SetJavaScriptEnabled")
+	private boolean castYouku_js(String url) {
+		Matcher matcher;
+		matcher = Pattern.compile("http://.*v.youku.com(.+?)/id_(.+?).html")
+				.matcher(url);
+		if (matcher.find()) {
+			webSite = "youku";
+			youkuVid = matcher.group(2);
+			Log.d(TAG, "youku url detected: " + matcher.group(0));
+			Log.d(TAG, "youku vid: " + youkuVid);
 		} else {
 			return false;
 		}
@@ -368,10 +412,14 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 		}
 	}
 
-	public void parseYoukuData(JsonReader reader) throws Exception {
+	public String parseYoukuData(JsonReader reader) throws Exception {
 		String name;
 		boolean thumbFound = false;
 		boolean titleFound = false;
+		boolean seedFound = false;
+		int seed = 0;
+		String streamfileid = null;
+		YoukuSegUrls youkuSegUrl = null;
 
 		reader.beginObject();
 		while (reader.hasNext()) {
@@ -389,12 +437,39 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 						youkuTitle = reader.nextString();
 						Log.d("youku", "title=" + youkuTitle);
 						titleFound = true;
+					} else if (name.equals("seed")) {
+						seed = reader.nextInt();
+						Log.d("youku", "seed=" + seed);
+						seedFound = true;
+					} else if (name.equals("streamfileids")) {
+						Log.d("youku", "parsing streamfileids");
+						streamfileid = parseStreamFileIds(reader);
+					} else if (name.equals("segs")) {
+						Log.d("youku", "parsing segs");
+						youkuSegUrl = parseYoukuSegUrls(reader);
 					} else {
-						Log.d("youku", "skip " + name);
+						Log.d("youku", "parse youkudata skip " + name);
 						reader.skipValue();
 					}
-					if (thumbFound && titleFound)
-						return;
+					if (thumbFound && titleFound && seedFound &&
+							streamfileid != null && youkuSegUrl != null) {
+						String fileid = getYoukuFileID(streamfileid, seed);
+						String sid = getYoukuSid();
+						String no;
+						String stype = "mp4";
+						String ret;
+
+						ret = "http://f.youku.com/player/getFlvPath/sid/" + sid;
+						no = youkuSegUrl.no;
+				        if (no.length() == 1)
+				            no = "0" + no;
+				        ret += "_" + no;
+				        ret += "/st/" + stype;
+				        ret += "/fileid/" + fileid;
+				        ret += "?K=" + youkuSegUrl.k;
+				        ret += "&hd=1&myp=0&ts=" + youkuSegUrl.seconds + "&ypp=0";
+						return ret;
+					}
 				}
 				reader.endObject();
 				reader.endArray();
@@ -402,6 +477,140 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 				reader.skipValue();
 			}
 		}
+		reader.endObject();
+		return null;
+	}
+	private String getYoukuSid() {
+		String part1, part2, part3;
+        long t = System.currentTimeMillis();
+        part1 = "" + t;
+        part2 = "" + (t-t/1000*1000);
+        part3 = "" + ((9E3 * Math.random()) + 1E3);
+        return part1 + part2 + part3;
+	}
+	private String getYoukuFileID(String sfID, int seed) {
+		String fileid = "";
+/*
+ *         source = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'\
+                 '/\\:._-1234567890'
+        index = 0
+        mixed = []
+        for i in range(len(source)):
+            seed = (seed * 211 + 30031) % 65536
+            index =  seed * len(source) / 65536
+            mixed.append(source[index])
+            source = source.replace(source[index],"")
+        mixstr = ''.join(mixed)
+        attr = streamid[:-1].split('*')
+        res = ""
+        for item in attr:
+            res +=  mixstr[int(item)]
+ */
+		String source = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ/\\:._-1234567890";
+		int i, index;
+		String mixed = "";
+		String s = "";
+		int l = source.length();
+		for (i=0; i < l; i++) {
+			seed = (seed * 211 + 30031) % 65536;
+			index =  seed * source.length() / 65536;
+			mixed = mixed + source.substring(index, index+1);
+			s = "";
+			if (index > 0)
+				s = s + source.substring(0, index);
+			if (index < source.length()-1)
+				s = s + source.substring(index+1);
+			Log.d("youku", "i="+i + " index="+index);
+			Log.d("youku", "mixed = " + mixed);
+			Log.d("youku", "source = " + s);
+			source = s;
+		}
+		Log.d("youku", "getFileId source: " + source + " len=" + source.length());
+		String[] strs = sfID.split("\\*");
+		for (i=0; i<strs.length; i++) {
+			int j = Integer.parseInt(strs[i]);
+			Log.d("youku", "j=" + j);
+			fileid = fileid + mixed.substring(j, j+1);
+		}
+		return fileid;
+	}
+	private String parseStreamFileIds(JsonReader reader) throws Exception {
+		String sfID = null;
+		String name;
+
+		reader.beginObject();
+		while (reader.hasNext()) {
+			name = reader.nextName();
+			if (name.equals("3gphd")) {
+				sfID = reader.nextString();
+				Log.d("youku", "3gphd stream file ids found: " + sfID);
+			} else {
+				reader.skipValue();
+				Log.d("youku", "stream file ids skip: " + name);
+			}
+		}
+		reader.endObject();
+		return sfID;
+	}
+
+	class YoukuSegUrls {
+		public String no;
+		public int seconds;
+		public String k;
+	}
+
+	private YoukuSegUrls parseYoukuSegUrls(JsonReader reader)
+			throws Exception {
+		YoukuSegUrls youkuUrl = new YoukuSegUrls();
+		boolean noFound = false;
+		boolean secondsFound = false;
+		boolean kFound = false;
+		String name;
+
+		reader.beginObject();
+		while (reader.hasNext()) {
+			name = reader.nextName();
+			Log.d("youku", "this is " + name);
+			if (name.equals("3gphd")) {
+				Log.d("youku", "Segurls parsing 3gphd");
+				reader.beginArray();
+				Log.d("youku", "0");
+				while (reader.hasNext()) {
+					Log.d("youku", "1");
+					reader.beginObject();
+					while (reader.hasNext()) {
+						Log.d("youku", "11");
+						name = reader.nextName();
+						if (name.equals("no")) {
+							youkuUrl.no = reader.nextString();
+							Log.d("youku", "SegUrls no:" + youkuUrl.no);
+							noFound = true;
+						} else if (name.equals("seconds")) {
+							youkuUrl.seconds = reader.nextInt();
+							secondsFound = true;
+							Log.d("youku", "SegUrls seconds:" + youkuUrl.seconds);
+						} else if (name.equals("k")) {
+							youkuUrl.k = reader.nextString();
+							kFound = true;
+							Log.d("youku", "SegUrls k:" + youkuUrl.k);
+						} else {
+							reader.skipValue();
+							Log.d("youku", "SegUrls skip:" + name);
+						}
+					}
+					reader.endObject();
+				}
+				Log.d("youku", "2");
+				reader.endArray();
+			} else {
+				reader.skipValue();
+				Log.d("youku", "SegUrls skip:" + name);
+			}
+		}
+		reader.endObject();
+		if (noFound && kFound && secondsFound)
+			return youkuUrl;
+		return null;
 	}
 
 	public InputStream getWebPageStream(String path) throws Exception {
@@ -468,7 +677,8 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 
 	private boolean castTencent(String url) {
 		Matcher matcher;
-		matcher = Pattern.compile("http://.*v.qq.com/(.+?).html(.*)").matcher(url);
+		matcher = Pattern.compile("http://.*v.qq.com/(.+?).html(.*)").matcher(
+				url);
 		if (matcher.find()) {
 			webSite = "qq";
 			Log.d(TAG_TENCENT, "tencent url detected: " + matcher.group(0));
@@ -476,12 +686,13 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 		} else {
 			return false;
 		}
-		url = "http://v.qq.com/" + matcher.group(1) + ".html" + matcher.group(2);
+		url = "http://v.qq.com/" + matcher.group(1) + ".html"
+				+ matcher.group(2);
 
 		final String qqUrl;
 		matcher = Pattern.compile("cid=(.+?)&vid=(.+?)$").matcher(url);
 		if (matcher.find()) {
-			//String cid = matcher.group(1);
+			// String cid = matcher.group(1);
 			String vid = matcher.group(2);
 			tencentBoke(vid);
 			return true;
@@ -489,7 +700,7 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 			qqUrl = url;
 		}
 		Log.d(TAG_TENCENT, "qqUrl = " + qqUrl);
-		//qqUrl = url;
+		// qqUrl = url;
 		new Thread() {
 			@Override
 			public void run() {
@@ -499,7 +710,8 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 					// Log.v("test come out: ", test);
 					// System.out.println(test);
 					Matcher matcher;
-					//String tencentThumbUrl = "file:///android_asset/tencent.png";
+					// String tencentThumbUrl =
+					// "file:///android_asset/tencent.png";
 
 					content = getPictureData(qqUrl);
 					System.out.println(content);
@@ -563,18 +775,19 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 				} catch (Exception e) {
 					Log.e(TAG_TENCENT, e.toString());
 					e.printStackTrace();
-					//System.exit(0);
+					// System.exit(0);
 				}
 			}
 		}.start();
 		return true;
 	}
-	//<!-- 兼容v.qq.com老的播放页面跳转到boke 放到v.qq.com/play.html -->
-	//<title>腾讯播客-实拍中国家属被马航带离 大声哭喊：救救我</title>
+
+	// <!-- 兼容v.qq.com老的播放页面跳转到boke 放到v.qq.com/play.html -->
+	// <title>腾讯播客-实拍中国家属被马航带离 大声哭喊：救救我</title>
 	private boolean tencentBoke(String vid) {
 		Matcher matcher;
 		try {
-			content = getPictureData("http://play.v.qq.com/play?vid="+vid);
+			content = getPictureData("http://play.v.qq.com/play?vid=" + vid);
 			matcher = Pattern.compile("<title>(.*)</title>").matcher(content);
 			if (matcher.find())
 				tencentTitle = matcher.group(1);
@@ -585,8 +798,7 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 		}
 
 		try {
-			content = getPictureData("http://vv.video.qq.com/geturl?vid="
-					+ vid
+			content = getPictureData("http://vv.video.qq.com/geturl?vid=" + vid
 					+ "&otype=xml&platform=1&ran=0%2E9652906153351068");
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
@@ -594,15 +806,13 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 			return false;
 		}
 		// System.out.println(test2);
-		matcher = Pattern.compile("<url>(.+?)</url>").matcher(
-				content);
+		matcher = Pattern.compile("<url>(.+?)</url>").matcher(content);
 		if (matcher.find()) {
 			Log.d(TAG_TENCENT, "streamUrl: " + matcher.group(1));
 
 			Intent intent1 = new Intent(CAST_INTENT_NAME);
 			intent1.setDataAndType(
-					Uri.parse(matcher.group(1) + "[@]"
-							+ tencentTitle + "[@]"
+					Uri.parse(matcher.group(1) + "[@]" + tencentTitle + "[@]"
 							+ tencentThumbUrl), null);
 			startActivity(intent1);
 			System.exit(0);
@@ -610,15 +820,15 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 
 		return true;
 	}
+
 	private void tencentDirectURL(String url, String content) {
 		Matcher matcher;
 		matcher = Pattern.compile("\\?vid=(.+?)$").matcher(url);
 		if (matcher.find()) {
 			tencentVid = matcher.group(1);
-			Log.d(TAG_TENCENT+"directURL", "vid found in url: " + tencentVid);
+			Log.d(TAG_TENCENT + "directURL", "vid found in url: " + tencentVid);
 		} else {
-			matcher = Pattern.compile("vid:\"(.+?)\"").matcher(
-					content);
+			matcher = Pattern.compile("vid:\"(.+?)\"").matcher(content);
 			if (matcher.find()) {
 				tencentVid = matcher.group(1);
 				Log.d(TAG_TENCENT, "tencentVid: " + tencentVid);
@@ -628,29 +838,26 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 			}
 		}
 
-		matcher = Pattern.compile("pic :\"(.+?)\"").matcher(
-				content);
+		matcher = Pattern.compile("pic :\"(.+?)\"").matcher(content);
 		if (matcher.find()) {
 			tencentThumbUrl = matcher.group(1);
-			Log.d(TAG_TENCENT, "tencentThumbUrl: "
-					+ tencentThumbUrl);
+			Log.d(TAG_TENCENT, "tencentThumbUrl: " + tencentThumbUrl);
 		} else {
-			Log.d(TAG_TENCENT, "tencentThumbUrl not found, "
-					+ tencentThumbUrl + " will be used");
+			Log.d(TAG_TENCENT, "tencentThumbUrl not found, " + tencentThumbUrl
+					+ " will be used");
 		}
 
-		// id="s0014qqdkhn"  title="一仆二主 第01集"
-		matcher = Pattern.compile("id=\"" + tencentVid + "\".*title=\"(.+?)\"").matcher(
-				content);
+		// id="s0014qqdkhn" title="一仆二主 第01集"
+		matcher = Pattern.compile("id=\"" + tencentVid + "\".*title=\"(.+?)\"")
+				.matcher(content);
 		if (matcher.find()) {
 			tencentTitle = matcher.group(1);
 			Log.d(TAG_TENCENT, "tencentTitle: " + tencentTitle);
 		} else {
-			Log.d(TAG_TENCENT, "tencentTitle not found, "
-					+ tencentTitle + " will be used");
+			Log.d(TAG_TENCENT, "tencentTitle not found, " + tencentTitle
+					+ " will be used");
 		}
 	}
-
 
 	public class LeTVlistener implements OnItemClickListener {
 		public void onItemClick(AdapterView<?> parent, View view, int position,
@@ -671,9 +878,9 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 	}
 
 	private void castLeTV(final String url) {
-        listAdapter = new ArrayAdapter<String>(this, R.layout.video_browser,
-                R.id.text1, listData);
-        lv.setAdapter(listAdapter);
+		listAdapter = new ArrayAdapter<String>(this, R.layout.video_browser,
+				R.id.text1, listData);
+		lv.setAdapter(listAdapter);
 		lv.setOnItemClickListener(new LeTVlistener());
 
 		new Thread() {
@@ -725,15 +932,14 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 								listData.add("高清");
 							if (superVisible)
 								listData.add("超清");
-					        listAdapter.notifyDataSetChanged();
-/*
-							buttonSD.setVisibility(View.VISIBLE);
-							if (HDvisible)
-								buttonHD.setVisibility(View.VISIBLE);
-							if (superVisible)
-								buttonFHD.setVisibility(View.VISIBLE);
-*/
-					        }
+							listAdapter.notifyDataSetChanged();
+							/*
+							 * buttonSD.setVisibility(View.VISIBLE); if
+							 * (HDvisible) buttonHD.setVisibility(View.VISIBLE);
+							 * if (superVisible)
+							 * buttonFHD.setVisibility(View.VISIBLE);
+							 */
+						}
 					});
 				} catch (Exception e) {
 					Log.e("LeTV", e.toString());
@@ -744,13 +950,12 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 		}.start();
 	}
 
-	private void RealcastLeTV(final String url, final String strDefinitionType) 
-	{
+	private void RealcastLeTV(final String url, final String strDefinitionType) {
 		new Thread() {
 			@Override
 			public void run() {
 				try {
-					
+
 					Matcher matcher;
 					String LeTVThumbUrl = "http://i1.letvimg.com/img/201206/29/iphonelogo.png";
 					String LeTVTitle = "乐视视频";
@@ -758,7 +963,7 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 					String LeTVVid = "null";
 
 					content = getPictureData(url);
-					//System.out.println(content);
+					// System.out.println(content);
 
 					matcher = Pattern.compile("img:\\s*\"(.+?)\"").matcher(
 							content);
@@ -777,7 +982,7 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 					}
 
 					// super, high, normal
-					
+
 					content = getPictureData("http://www.flvcd.com/parse.php?kw="
 							+ url + "&format=" + strDefinitionType);
 					// System.out.println(content);
@@ -806,8 +1011,8 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 		}.start();
 	}
 
-    /* for PC url 
-	 * http://tv.sohu.com/20140306/n396178078.shtml
+	/*
+	 * for PC url http://tv.sohu.com/20140306/n396178078.shtml
 	 */
 	private void getSohuVid(final String url) {
 		Matcher matcher;
@@ -833,15 +1038,14 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 
 	}
 
-    /*
+	/*
 	 * http://m.tv.sohu.com/v1647325.shtml?channeled=1210010500
 	 * http://m.tv.sohu.com/20140306/n396178078.shtml
 	 */
 	private boolean castSohu(String url) {
 		Matcher matcher;
 
-		matcher = Pattern.compile("http://.*tv\\.sohu\\.com")
-				.matcher(url);
+		matcher = Pattern.compile("http://.*tv\\.sohu\\.com").matcher(url);
 		if (matcher.find() == false)
 			return false;
 
@@ -871,7 +1075,8 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 			String content;
 			ArrayList<String> list = new ArrayList<String>();
 
-			matcher = Pattern.compile("m.tv.sohu.com/v(.+?).shtml").matcher(url);
+			matcher = Pattern.compile("m.tv.sohu.com/v(.+?).shtml")
+					.matcher(url);
 			if (matcher.find()) {
 				sohuVid = matcher.group(1);
 			} else {
@@ -892,15 +1097,14 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 
 			stream = getWebPageStream("http://hot.vrs.sohu.com/vrs_flash.action?vid="
 					+ sohuVid);
-			reader = new JsonReader(new InputStreamReader(stream,
-					"UTF-8"));
+			reader = new JsonReader(new InputStreamReader(stream, "UTF-8"));
 
 			parseSohuData(reader);
 			if (sohuUrls.length != sohuExtraUrls.length)
 				return null;
 
 			/*
-			 * "http://data.vod.itc.cn/?prot=2&file="        +
+			 * "http://data.vod.itc.cn/?prot=2&file=" +
 			 * paths[i].replace('http://data.vod.itc.cn','') +
 			 * '&new='+newpaths[i]
 			 */
@@ -908,21 +1112,25 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 			sohuUrl = "";
 			for (i = 0; i < sohuUrls.length; i++) {
 				Matcher match;
-				match = Pattern.compile("http://data.vod.itc.cn(.+?)$").matcher(sohuUrls[i]);
+				match = Pattern.compile("http://data.vod.itc.cn(.+?)$")
+						.matcher(sohuUrls[i]);
 				if (match.find() == false)
 					System.exit(0);
 				String part1 = match.group(1);
 				Log.d("sohu", "part1=" + part1);
 
-				String strUrl = "http://data.vod.itc.cn/?prot=2&file=" + part1 + "&new=" + sohuExtraUrls[i];
+				String strUrl = "http://data.vod.itc.cn/?prot=2&file=" + part1
+						+ "&new=" + sohuExtraUrls[i];
 				content = getPictureData(strUrl);
 				System.out.println(content);
 
 				/*
-				 * http://183.57.146.23/sohu/4/|425|113.90.234.243|3kYEI9wHApB9acO8Ooz1cOjZJjMze5PEnx-qfA..|1|0|1|1803
-				 * url = link.split('|')[0].rstrip("/")+newpaths[i]+'?key='+key
+				 * http://183.57.146.23/sohu/4/|425|113.90.234.243|3
+				 * kYEI9wHApB9acO8Ooz1cOjZJjMze5PEnx-qfA..|1|0|1|1803 url =
+				 * link.split('|')[0].rstrip("/")+newpaths[i]+'?key='+key
 				 */
-				match = Pattern.compile("^(.+?)/\\|(.+?)\\|(.+?)\\|(.+?)\\|").matcher(content);
+				match = Pattern.compile("^(.+?)/\\|(.+?)\\|(.+?)\\|(.+?)\\|")
+						.matcher(content);
 				if (match.find() == false)
 					System.exit(0);
 
@@ -954,57 +1162,61 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 		} catch (Exception e) {
 			Log.e("sohu", e.toString());
 			e.printStackTrace();
-			//System.exit(0);
+			// System.exit(0);
 		}
 		return null;
 	}
 
-    private void appendData(String url) {
-        if (listData == null)
-            return;
-        geturl(url);
-        for (int i = 1; i <= sohuFinalUrls.length; i++)
-            listData.add(sohuTitle + " 片段" + i);
-    }
-    class DataLoadThread extends Thread {
-    	private ArrayAdapter<String> adapter;
-    	String url;
-    	DataLoadThread(ArrayAdapter<String> adapter, String url) {
-    		this.adapter = adapter;
-    		this.url = url;
-    	}
-        @Override
-        public void run() {
-            try {
-                Thread.sleep(2000);
-                appendData(url);
-                // 因为Android控件只能通过主线程（ui线程）更新，所以用此方法
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        // 当数据改变时调用此方法通知view更新
-                        adapter.notifyDataSetChanged();
-                    }
-                });
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
-    }
-    private void listVideoSegs(String url) {
-        listData = new ArrayList<String>();
+	private void appendData(String url) {
+		if (listData == null)
+			return;
+		geturl(url);
+		for (int i = 1; i <= sohuFinalUrls.length; i++)
+			listData.add(sohuTitle + " 片段" + i);
+	}
+
+	class DataLoadThread extends Thread {
+		private ArrayAdapter<String> adapter;
+		String url;
+
+		DataLoadThread(ArrayAdapter<String> adapter, String url) {
+			this.adapter = adapter;
+			this.url = url;
+		}
+
+		@Override
+		public void run() {
+			try {
+				Thread.sleep(2000);
+				appendData(url);
+				// 因为Android控件只能通过主线程（ui线程）更新，所以用此方法
+				runOnUiThread(new Runnable() {
+					@Override
+					public void run() {
+						// 当数据改变时调用此方法通知view更新
+						adapter.notifyDataSetChanged();
+					}
+				});
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
+	private void listVideoSegs(String url) {
+		listData = new ArrayList<String>();
 
 		if (lv == null)
-            return;
+			return;
 
-        listAdapter = new ArrayAdapter<String>(this, R.layout.video_browser,
-                R.id.text1, listData);
-        lv.setAdapter(listAdapter);
+		listAdapter = new ArrayAdapter<String>(this, R.layout.video_browser,
+				R.id.text1, listData);
+		lv.setAdapter(listAdapter);
 		lv.setOnItemClickListener(this);
 
 		DataLoadThread currentThread = new DataLoadThread(listAdapter, url);
 		currentThread.start();
-    }
+	}
 
 	public boolean parseSohuData(JsonReader reader) throws Exception {
 		String name;
@@ -1026,7 +1238,7 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 					} else if (name.equals("coverImg")) {
 						thumbFound = true;
 						sohuThumbUrl = reader.nextString();
-						Log.d("sohu", "thumbUrl="+sohuThumbUrl);
+						Log.d("sohu", "thumbUrl=" + sohuThumbUrl);
 					} else if (name.equals("clipsURL")) {
 						Log.d("sohu", "parse clipsURL");
 						sohuUrls = parseSohuUrls(reader);
@@ -1047,6 +1259,7 @@ public class VideoBrowserActivity extends Activity implements OnItemClickListene
 		reader.endObject();
 		return false;
 	}
+
 	private String[] parseSohuUrls(JsonReader reader) throws Exception {
 		ArrayList<String> list = new ArrayList<String>();
 		String[] retStr = null;
