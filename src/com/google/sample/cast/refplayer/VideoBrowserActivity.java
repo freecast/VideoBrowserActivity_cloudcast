@@ -336,6 +336,7 @@ public class VideoBrowserActivity extends Activity implements
 				Log.d("youku", "intent was prepared");
 				startActivity(intent1);
 				Log.d("youku", "activity was started");
+				System.exit(0);
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
