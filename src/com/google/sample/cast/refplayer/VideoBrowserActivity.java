@@ -869,9 +869,14 @@ public class VideoBrowserActivity extends Activity implements
 			else if (position == 2)
 				definition = "super";
 
-			Log.v("LeTVlistItemListener", definition);
-			RealcastLeTV(LeTVurl, definition);
-			Log.v("LeTVlistItemListener", definition + " cast finished");
+			final String final_Def = definition;
+			new Thread() {
+				public void run() {
+					Log.v("LeTVlistItemListener", final_Def);
+					RealcastLeTV(LeTVurl, final_Def);
+					Log.v("LeTVlistItemListener", final_Def + " cast finished");
+				}
+			}.start();
 		}
 	}
 
@@ -881,132 +886,110 @@ public class VideoBrowserActivity extends Activity implements
 		lv.setAdapter(listAdapter);
 		lv.setOnItemClickListener(new LeTVlistener());
 
-		new Thread() {
-			@Override
-			public void run() {
-				try {
-					Matcher matcher;
-					String LeTVThumbUrl = "http://i1.letvimg.com/img/201206/29/iphonelogo.png";
-					String LeTVTitle = "乐视视频";
-					String content;
-					String LeTVVid = "null";
+		try {
+			Matcher matcher;
+			String LeTVThumbUrl = "http://i1.letvimg.com/img/201206/29/iphonelogo.png";
+			String LeTVTitle = "乐视视频";
+			String content;
+			String LeTVVid = "null";
 
-					boolean superFound = false;
-					boolean hdFound = false;
-					LeTVurl = url;
+			boolean superFound = false;
+			boolean hdFound = false;
+			LeTVurl = url;
 
-					content = getPictureData("http://www.flvcd.com/parse.php?kw="
-							+ url + "&format=" + "normal");
-					// System.out.println(content);
+			content = getPictureData("http://www.flvcd.com/parse.php?kw=" + url
+					+ "&format=" + "normal");
+			// System.out.println(content);
 
-					Log.d("LeTV", "buttonSD= VISIBLE");
+			Log.d("LeTV", "buttonSD= VISIBLE");
 
-					matcher = Pattern.compile("format=high(.+?)").matcher(
-							content);
-					if (matcher.find()) {
-						hdFound = true;
-						Log.d("LeTV", "buttonHD= VISIBLE");
-					} else {
-						Log.d("LeTV", "buttonHD= INVISIBLE");
-					}
-
-					matcher = Pattern.compile("format=super(.+?)").matcher(
-							content);
-					if (matcher.find()) {
-						superFound = true;
-						Log.d("LeTV", "buttonFHD= VISIBLE");
-					} else {
-						Log.d("LeTV", "buttonFHD= INVISIBLE");
-					}
-
-					final boolean HDvisible = hdFound;
-					final boolean superVisible = superFound;
-					runOnUiThread(new Runnable() {
-						@Override
-						public void run() {
-							listData.clear();
-							listData.add("标清");
-							if (HDvisible)
-								listData.add("高清");
-							if (superVisible)
-								listData.add("超清");
-							listAdapter.notifyDataSetChanged();
-							/*
-							 * buttonSD.setVisibility(View.VISIBLE); if
-							 * (HDvisible) buttonHD.setVisibility(View.VISIBLE);
-							 * if (superVisible)
-							 * buttonFHD.setVisibility(View.VISIBLE);
-							 */
-						}
-					});
-				} catch (Exception e) {
-					Log.e("LeTV", e.toString());
-					System.exit(0);
-				}
+			matcher = Pattern.compile("format=high(.+?)").matcher(content);
+			if (matcher.find()) {
+				hdFound = true;
+				Log.d("LeTV", "buttonHD= VISIBLE");
+			} else {
+				Log.d("LeTV", "buttonHD= INVISIBLE");
 			}
 
-		}.start();
+			matcher = Pattern.compile("format=super(.+?)").matcher(content);
+			if (matcher.find()) {
+				superFound = true;
+				Log.d("LeTV", "buttonFHD= VISIBLE");
+			} else {
+				Log.d("LeTV", "buttonFHD= INVISIBLE");
+			}
+
+			final boolean HDvisible = hdFound;
+			final boolean superVisible = superFound;
+			runOnUiThread(new Runnable() {
+				@Override
+				public void run() {
+					listData.clear();
+					listData.add("标清");
+					if (HDvisible)
+						listData.add("高清");
+					if (superVisible)
+						listData.add("超清");
+					listAdapter.notifyDataSetChanged();
+				}
+			});
+		} catch (Exception e) {
+			Log.e("LeTV", e.toString());
+			System.exit(0);
+		}
 	}
 
 	private void RealcastLeTV(final String url, final String strDefinitionType) {
-		new Thread() {
-			@Override
-			public void run() {
-				try {
+		try {
+			Matcher matcher;
+			String LeTVThumbUrl = "http://i1.letvimg.com/img/201206/29/iphonelogo.png";
+			String LeTVTitle = "乐视视频";
+			String content;
+			String LeTVVid = "null";
 
-					Matcher matcher;
-					String LeTVThumbUrl = "http://i1.letvimg.com/img/201206/29/iphonelogo.png";
-					String LeTVTitle = "乐视视频";
-					String content;
-					String LeTVVid = "null";
+			content = getPictureData(url);
+			// System.out.println(content);
 
-					content = getPictureData(url);
-					// System.out.println(content);
-
-					matcher = Pattern.compile("img:\\s*\"(.+?)\"").matcher(
-							content);
-					if (matcher.find()) {
-						LeTVThumbUrl = matcher.group(1);
-						Log.d("LeTVreal", "LeTVThumbUrl=" + LeTVThumbUrl);
-					} else {
-						Log.d("LeTVreal", "LeTVThumbUrl not found");
-					}
-
-					matcher = Pattern.compile("irTitle\" content=\"(.+?)\"")
-							.matcher(content);
-					if (matcher.find()) {
-						LeTVTitle = matcher.group(1);
-						Log.d("LeTVreal", "LeTVTitle=" + LeTVTitle);
-					}
-
-					// super, high, normal
-
-					content = getPictureData("http://www.flvcd.com/parse.php?kw="
-							+ url + "&format=" + strDefinitionType);
-					// System.out.println(content);
-
-					matcher = Pattern.compile("var clipurl = \"(.+?)\"")
-							.matcher(content);
-					if (matcher.find()) {
-						String redirectUrl = matcher.group(1);
-						Log.d("LeTVreal", "redirect_url=" + redirectUrl);
-
-						Intent intent1 = new Intent(CAST_INTENT_NAME);
-						Log.d("LeTVreal", "new intent was done");
-						intent1.setDataAndType(
-								Uri.parse(redirectUrl + "[@]" + LeTVTitle
-										+ "[@]" + LeTVThumbUrl), null);
-						Log.d("LeTVreal", "intent set data and type was done");
-						startActivity(intent1);
-						Log.d("LeTVreal", "startActivity was done");
-						System.exit(0);
-					}
-				} catch (Exception e) {
-					Log.e("LeTV", e.toString());
-					System.exit(0);
-				}
+			matcher = Pattern.compile("img:\\s*\"(.+?)\"").matcher(content);
+			if (matcher.find()) {
+				LeTVThumbUrl = matcher.group(1);
+				Log.d("LeTVreal", "LeTVThumbUrl=" + LeTVThumbUrl);
+			} else {
+				Log.d("LeTVreal", "LeTVThumbUrl not found");
 			}
-		}.start();
+
+			matcher = Pattern.compile("irTitle\" content=\"(.+?)\"").matcher(
+					content);
+			if (matcher.find()) {
+				LeTVTitle = matcher.group(1);
+				Log.d("LeTVreal", "LeTVTitle=" + LeTVTitle);
+			}
+
+			// super, high, normal
+
+			content = getPictureData("http://www.flvcd.com/parse.php?kw=" + url
+					+ "&format=" + strDefinitionType);
+			// System.out.println(content);
+
+			matcher = Pattern.compile("var clipurl = \"(.+?)\"").matcher(
+					content);
+			if (matcher.find()) {
+				String redirectUrl = matcher.group(1);
+				Log.d("LeTVreal", "redirect_url=" + redirectUrl);
+
+				Intent intent1 = new Intent(CAST_INTENT_NAME);
+				Log.d("LeTVreal", "new intent was done");
+				intent1.setDataAndType(
+						Uri.parse(redirectUrl + "[@]" + LeTVTitle + "[@]"
+								+ LeTVThumbUrl), null);
+				Log.d("LeTVreal", "intent set data and type was done");
+				startActivity(intent1);
+				Log.d("LeTVreal", "startActivity was done");
+			}
+		} catch (Exception e) {
+			Log.e("LeTV", e.toString());
+			System.exit(0);
+		}
 	}
 
 	/*
