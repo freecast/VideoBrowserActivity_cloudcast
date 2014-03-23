@@ -520,16 +520,11 @@ public class VideoBrowserActivity extends Activity implements
 				s = s + source.substring(0, index);
 			if (index < source.length()-1)
 				s = s + source.substring(index+1);
-			Log.d("youku", "i="+i + " index="+index);
-			Log.d("youku", "mixed = " + mixed);
-			Log.d("youku", "source = " + s);
 			source = s;
 		}
-		Log.d("youku", "getFileId source: " + source + " len=" + source.length());
 		String[] strs = sfID.split("\\*");
 		for (i=0; i<strs.length; i++) {
 			int j = Integer.parseInt(strs[i]);
-			Log.d("youku", "j=" + j);
 			fileid = fileid + mixed.substring(j, j+1);
 		}
 		return fileid;
